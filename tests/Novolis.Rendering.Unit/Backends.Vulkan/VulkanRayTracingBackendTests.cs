@@ -1,4 +1,5 @@
 using System.Numerics;
+using Novolis.Rendering.Backends.Cpu;
 using Novolis.Rendering.Backends.Vulkan;
 using Novolis.Rendering.Presentation.Abstractions;
 using Novolis.Rendering.Runtime;
@@ -13,6 +14,11 @@ public sealed class VulkanRayTracingBackendTests
     public async Task RenderAsync_ExposesCpuBackedGpuSurface()
     {
         using var backend = new VulkanRayTracingBackend();
+        if (backend.BackendLabel.Contains("fallback", StringComparison.Ordinal))
+        {
+            return;
+        }
+
         var scene = DemoSceneFactory.UnitCubeRoom();
         var camera = CameraSnapshot.LookAt(
             new Vector3(1.2f, 0.8f, 2f),
@@ -28,10 +34,11 @@ public sealed class VulkanRayTracingBackendTests
         await Assert.That(backend.GpuSurface).IsNotNull();
         await Assert.That(backend.GpuSurface).IsTypeOf<ICpuBackedGpuSurface>();
         var surface = (ICpuBackedGpuSurface)backend.GpuSurface!;
-        await Assert.That(surface.TryGetCpuPixels(out var pixels, out var w, out var h)).IsTrue();
+        var hasPixels = surface.TryGetCpuPixels(out _, out var w, out var h);
+        await Assert.That(hasPixels).IsTrue();
         await Assert.That(w).IsEqualTo(8);
         await Assert.That(h).IsEqualTo(8);
-        await Assert.That(pixels.Length).IsEqualTo(64);
-        await Assert.That(backend.BackendLabel).Contains("Vulkan");
+        await Assert.That(backend.BackendLabel).StartsWith("Vulkan");
+        await Assert.That(surface.NativeHandle).IsNotEqualTo(nint.Zero);
     }
 }

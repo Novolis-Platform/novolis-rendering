@@ -52,6 +52,10 @@ public sealed class SilkGameContext
     /// <summary>True only on the frame the key transitioned to down (Raylib-style pressed).</summary>
     public bool IsKeyPressed(Key key) => IsKeyDown(key) && !_keysDownLastFrame.Contains(key);
 
+    public bool IsResetPressed() => IsKeyPressed(Key.R);
+
+    public bool IsOrbitTogglePressed() => IsKeyPressed(Key.Space);
+
     internal void EndInputFrame()
     {
         _keysDownLastFrame.Clear();

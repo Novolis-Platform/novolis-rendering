@@ -24,7 +24,7 @@ Scene + IMaterial  →  SceneCompiler  →  CompiledScene
 | `Novolis.Rendering.Runtime` | `CompiledScene`, `CameraSnapshot`, `IRayTracingBackend` |
 | `Novolis.Rendering.Backends.Cpu` | CPU path tracer (progressive accumulation) |
 | `Novolis.Rendering.Backends.Igpu` | ILGPU GPU path tracer (CPU fallback when no GPU or `deterministic: true`) |
-| `Novolis.Rendering.Backends.Vulkan` | Vulkan compute placeholder |
+| `Novolis.Rendering.Backends.Vulkan` | Vulkan compute path tracing (SPIR-V) |
 | `Novolis.Rendering.DependencyInjection` | `AddRayTracing()`, `UseCpuBackend()` |
 | `Novolis.Rendering.Presentation.Silk` | Silk.NET window + OpenGL CPU presenter |
 | `Novolis.Rendering.Presentation.Raylib` | Raylib CPU frame presenter |

@@ -6,13 +6,18 @@
     <AssemblyName>Novolis.Rendering.Backends.Vulkan</AssemblyName>
     <PackageId>Novolis.Rendering.Backends.Vulkan</PackageId>
     <IsPackable>true</IsPackable>
-    <Description>Vulkan ray tracing backend (ILGPU compute + host-visible Vulkan buffer).</Description>
+    <Description>Vulkan compute path tracing backend (SPIR-V).</Description>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Silk.NET.Shaderc" />
+    <PackageReference Include="Silk.NET.Shaderc.Native" />
     <PackageReference Include="Silk.NET.Vulkan" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Novolis.Rendering.Backends.Igpu\Novolis.Rendering.Backends.Igpu.csproj" />
+    <EmbeddedResource Include="Shaders\path_trace.comp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Novolis.Rendering.Backends.Cpu\Novolis.Rendering.Backends.Cpu.csproj" />
     <ProjectReference Include="..\Novolis.Rendering.Presentation.Abstractions\Novolis.Rendering.Presentation.Abstractions.csproj" />
     <ProjectReference Include="..\Novolis.Rendering.Runtime\Novolis.Rendering.Runtime.csproj" />
   </ItemGroup>

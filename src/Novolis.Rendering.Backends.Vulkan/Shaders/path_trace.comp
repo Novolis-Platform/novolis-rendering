@@ -1,0 +1,378 @@
+#version 450
+
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+const int MAX_DEPTH = 4;
+const float EPSILON = 1e-4;
+const int MAX_LIGHTS = 8;
+const int BVH_STACK_CAPACITY = 64;
+const float DISPLAY_EXPOSURE = 2.0;
+const float AMBIENT_STRENGTH = 0.08;
+
+struct GpuTriangle {
+    vec4 a;
+    vec4 b;
+    vec4 c;
+    int materialIndex;
+};
+
+struct GpuMaterial {
+    int model;
+    vec4 a;
+    vec4 b;
+    vec4 c;
+};
+
+struct GpuLight {
+    int kind;
+    vec3 directionOrPosition;
+    float _pad0;
+    vec3 color;
+    float intensity;
+};
+
+struct GpuBvhNode {
+    vec3 boundsMin;
+    float _pad0;
+    vec3 boundsMax;
+    float _pad1;
+    int triangleOrderOffset;
+    int triangleCount;
+    int leftChild;
+    int rightChild;
+    int isLeaf;
+};
+
+layout(binding = 0) uniform FrameParams {
+    int uWidth;
+    int uHeight;
+    int uSampleIndex;
+    int uLightCount;
+    int uBvhRootIndex;
+    vec3 uCamPos;
+    float _padCam0;
+    vec3 uCamForward;
+    float _padCam1;
+    vec3 uCamRight;
+    float _padCam2;
+    vec3 uCamUp;
+    float uTanHalfFov;
+    float uAspect;
+};
+
+layout(binding = 1, std430) buffer Accumulation { vec3 accumulation[]; };
+layout(binding = 2, std430) buffer Display { uint displayRgba[]; };
+layout(binding = 3, std430) readonly buffer Triangles { GpuTriangle triangles[]; };
+layout(binding = 4, std430) readonly buffer Materials { GpuMaterial materials[]; };
+layout(binding = 5, std430) readonly buffer Lights { GpuLight lights[]; };
+layout(binding = 6, std430) readonly buffer BvhNodes { GpuBvhNode bvhNodes[]; };
+layout(binding = 7, std430) readonly buffer TriangleOrder { int triangleOrder[]; };
+
+const int MATERIAL_STANDARD = 0;
+const int MATERIAL_EMISSIVE = 3;
+const int LIGHT_DIRECTIONAL = 0;
+
+uint rngState;
+uint nextUint() {
+    rngState ^= rngState << 13u;
+    rngState ^= rngState >> 17u;
+    rngState ^= rngState << 5u;
+    return rngState;
+}
+
+float nextFloat() {
+    return float(nextUint() & 0xFFFFFFu) / float(0x1000000);
+}
+
+float saturate(float v) { return clamp(v, 0.0, 1.0); }
+
+vec3 sampleSky(vec3 direction) {
+    float t = saturate(direction.y * 0.5 + 0.5);
+    vec3 low = vec3(40.0, 44.0, 52.0) / 255.0;
+    vec3 high = vec3(120.0, 168.0, 220.0) / 255.0;
+    return mix(low, high, t);
+}
+
+struct Hit {
+    int materialIndex;
+    vec3 point;
+    vec3 normal;
+};
+
+bool triangleHit(vec3 origin, vec3 direction, GpuTriangle tri, float maxT, out float t, out vec3 normal) {
+    vec3 v0 = tri.a.xyz;
+    vec3 v1 = tri.b.xyz;
+    vec3 v2 = tri.c.xyz;
+    vec3 edge1 = v1 - v0;
+    vec3 edge2 = v2 - v0;
+    vec3 pvec = cross(direction, edge2);
+    float det = dot(edge1, pvec);
+    if (abs(det) < 1e-8) {
+        t = 0.0;
+        normal = vec3(0.0);
+        return false;
+    }
+    float invDet = 1.0 / det;
+    vec3 tvec = origin - v0;
+    float u = dot(tvec, pvec) * invDet;
+    if (u < 0.0 || u > 1.0) {
+        t = 0.0;
+        normal = vec3(0.0);
+        return false;
+    }
+    vec3 qvec = cross(tvec, edge1);
+    float v = dot(direction, qvec) * invDet;
+    if (v < 0.0 || u + v > 1.0) {
+        t = 0.0;
+        normal = vec3(0.0);
+        return false;
+    }
+    t = dot(edge2, qvec) * invDet;
+    if (t < EPSILON || t > maxT) {
+        normal = vec3(0.0);
+        return false;
+    }
+    normal = normalize(cross(edge1, edge2));
+    if (dot(normal, direction) > 0.0) {
+        normal = -normal;
+    }
+    return true;
+}
+
+bool raySlabIntersect(vec3 boxMin, vec3 boxMax, vec3 origin, vec3 direction, float minT, float maxT) {
+    float tEnter = minT;
+    float tExit = maxT;
+    for (int axis = 0; axis < 3; axis++) {
+        float o = axis == 0 ? origin.x : (axis == 1 ? origin.y : origin.z);
+        float d = axis == 0 ? direction.x : (axis == 1 ? direction.y : direction.z);
+        float bmin = axis == 0 ? boxMin.x : (axis == 1 ? boxMin.y : boxMin.z);
+        float bmax = axis == 0 ? boxMax.x : (axis == 1 ? boxMax.y : boxMax.z);
+        if (abs(d) < 1e-15) {
+            if (o < bmin || o > bmax) {
+                return false;
+            }
+            continue;
+        }
+        float invD = 1.0 / d;
+        float t0 = (bmin - o) * invD;
+        float t1 = (bmax - o) * invD;
+        if (t0 > t1) {
+            float swap = t0;
+            t0 = t1;
+            t1 = swap;
+        }
+        tEnter = max(tEnter, t0);
+        tExit = min(tExit, t1);
+        if (tEnter > tExit) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool intersectBrute(vec3 origin, vec3 direction, float maxT, out Hit hit) {
+    hit.materialIndex = 0;
+    hit.point = vec3(0.0);
+    hit.normal = vec3(0.0);
+    float bestT = maxT;
+    bool found = false;
+    for (int i = 0; i < triangles.length(); i++) {
+        float t;
+        vec3 n;
+        if (!triangleHit(origin, direction, triangles[i], bestT, t, n)) {
+            continue;
+        }
+        found = true;
+        bestT = t;
+        hit.materialIndex = triangles[i].materialIndex;
+        hit.point = origin + direction * t;
+        hit.normal = n;
+    }
+    return found;
+}
+
+bool intersectScene(vec3 origin, vec3 direction, float maxT, out Hit hit) {
+    hit.materialIndex = 0;
+    hit.point = vec3(0.0);
+    hit.normal = vec3(0.0);
+    if (uBvhRootIndex >= 0 && bvhNodes.length() > 0) {
+        float bestT = maxT;
+        bool found = false;
+        int stack[BVH_STACK_CAPACITY];
+        int stackSize = 0;
+        stack[stackSize++] = uBvhRootIndex;
+        while (stackSize > 0) {
+            int nodeIndex = stack[--stackSize];
+            GpuBvhNode node = bvhNodes[nodeIndex];
+            if (!raySlabIntersect(node.boundsMin, node.boundsMax, origin, direction, 0.0, bestT)) {
+                continue;
+            }
+            if (node.isLeaf != 0) {
+                for (int i = 0; i < node.triangleCount; i++) {
+                    int triIdx = triangleOrder[node.triangleOrderOffset + i];
+                    float t;
+                    vec3 n;
+                    if (!triangleHit(origin, direction, triangles[triIdx], bestT, t, n)) {
+                        continue;
+                    }
+                    found = true;
+                    bestT = t;
+                    hit.materialIndex = triangles[triIdx].materialIndex;
+                    hit.point = origin + direction * t;
+                    hit.normal = n;
+                }
+                continue;
+            }
+            if (stackSize + 2 <= BVH_STACK_CAPACITY) {
+                stack[stackSize++] = node.leftChild;
+                stack[stackSize++] = node.rightChild;
+            }
+        }
+        return found;
+    }
+    return intersectBrute(origin, direction, maxT, hit);
+}
+
+bool shadowClear(vec3 origin, vec3 normal, vec3 direction, float maxDist) {
+    vec3 shadowOrigin = origin + normal * EPSILON;
+    Hit shadowHit;
+    return !intersectScene(shadowOrigin, direction, maxDist, shadowHit);
+}
+
+vec3 ggxSpec(vec3 n, vec3 v, vec3 l, float roughness, vec3 f0) {
+    vec3 h = normalize(v + l);
+    float ndoth = max(0.0, dot(n, h));
+    float ndotl = max(0.0, dot(n, l));
+    float ndotv = max(0.0, dot(n, v));
+    if (ndotl <= 0.0 || ndotv <= 0.0) {
+        return vec3(0.0);
+    }
+    float a = roughness * roughness;
+    float a2 = a * a;
+    float denom = ndoth * ndoth * (a2 - 1.0) + 1.0;
+    float d = a2 / (3.14159265 * denom * denom + 1e-7);
+    return f0 * (d * ndotl);
+}
+
+vec3 directLighting(vec3 incomingDirection, Hit hit, GpuMaterial mat) {
+    vec3 baseColor = mat.a.rgb;
+    float roughness = max(mat.a.w, 0.04);
+    float metallic = mat.b.x;
+    float emissionStrength = mat.b.y;
+    vec3 emissionColor = mat.c.rgb;
+    vec3 n = hit.normal;
+    vec3 v = normalize(-incomingDirection);
+    vec3 radiance = emissionColor * emissionStrength;
+    int lightsToProcess = min(uLightCount, MAX_LIGHTS);
+    for (int i = 0; i < lightsToProcess; i++) {
+        GpuLight light = lights[i];
+        vec3 lightPos = light.directionOrPosition;
+        vec3 lightDir = light.kind == LIGHT_DIRECTIONAL
+            ? normalize(-lightPos)
+            : normalize(lightPos - hit.point);
+        float maxDist = light.kind == LIGHT_DIRECTIONAL
+            ? 1e6
+            : length(lightPos - hit.point);
+        if (!shadowClear(hit.point, hit.normal, lightDir, maxDist)) {
+            continue;
+        }
+        float ndotl = max(0.0, dot(n, lightDir));
+        vec3 diffuse = baseColor * (1.0 - metallic);
+        vec3 f0 = mix(vec3(0.04), baseColor, metallic);
+        vec3 spec = ggxSpec(n, v, lightDir, roughness, f0);
+        vec3 lightColor = light.color;
+        radiance += (diffuse * ndotl + spec) * lightColor * light.intensity;
+    }
+    return radiance + baseColor * AMBIENT_STRENGTH;
+}
+
+vec3 cosineHemisphere(vec3 normal) {
+    float u1 = nextFloat();
+    float u2 = nextFloat();
+    float r = sqrt(u1);
+    float phi = 6.2831853 * u2;
+    float x = r * cos(phi);
+    float y = r * sin(phi);
+    float z = sqrt(max(0.0, 1.0 - u1));
+    vec3 up = abs(normal.y) < 0.999 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
+    vec3 tangent = normalize(cross(up, normal));
+    vec3 bitangent = cross(normal, tangent);
+    return normalize(tangent * x + bitangent * y + normal * z);
+}
+
+void writeRgba(int index, vec3 color) {
+    float exposed = color * DISPLAY_EXPOSURE;
+    vec3 gamma = sqrt(max(exposed, vec3(0.0)));
+    uint r = uint(clamp(int(gamma.r * 255.0), 0, 255));
+    uint g = uint(clamp(int(gamma.g * 255.0), 0, 255));
+    uint b = uint(clamp(int(gamma.b * 255.0), 0, 255));
+    displayRgba[index] = (255u << 24u) | (b << 16u) | (g << 8u) | r;
+}
+
+void main() {
+    int pixelCount = uWidth * uHeight;
+    int index = int(gl_GlobalInvocationID.x);
+    if (index >= pixelCount) {
+        return;
+    }
+
+    int x = index % uWidth;
+    int y = index / uWidth;
+    rngState = uint(42 + uSampleIndex * 100000 + index * 7919 + uWidth);
+    float jitterX = nextFloat();
+    float jitterY = nextFloat();
+    float u = (2.0 * (float(x) + jitterX) / float(uWidth) - 1.0) * uTanHalfFov * uAspect;
+    float v = (2.0 * (float(y) + jitterY) / float(uHeight) - 1.0) * uTanHalfFov;
+    vec3 origin = uCamPos;
+    vec3 direction = normalize(uCamForward + uCamRight * u + uCamUp * v);
+    vec3 throughput = vec3(1.0);
+    vec3 radiance = vec3(0.0);
+
+    for (int depth = 0; depth < MAX_DEPTH; depth++) {
+        Hit hit;
+        if (!intersectScene(origin, direction, 1.0e30, hit)) {
+            radiance += throughput * sampleSky(direction);
+            break;
+        }
+
+        GpuMaterial mat = materials[hit.materialIndex];
+        if (mat.model == MATERIAL_EMISSIVE) {
+            radiance += throughput * (mat.a.rgb * mat.a.w);
+            break;
+        }
+
+        radiance += throughput * directLighting(direction, hit, mat);
+        if (depth + 1 >= MAX_DEPTH) {
+            break;
+        }
+
+        vec3 baseColor = mat.a.rgb;
+        float roughness = max(mat.a.w, 0.04);
+        float metallic = mat.b.x;
+        vec3 n = hit.normal;
+
+        if (metallic > 0.75) {
+            float mirrorWeight = metallic * (1.0 - min(roughness / 0.12, 1.0));
+            if (mirrorWeight > 0.01) {
+                origin = hit.point + n * EPSILON;
+                direction = normalize(reflect(direction, n));
+                throughput *= baseColor * mirrorWeight;
+                continue;
+            }
+        }
+
+        if (roughness > 0.01 && nextFloat() > metallic) {
+            origin = hit.point + n * EPSILON;
+            direction = cosineHemisphere(n);
+            throughput *= baseColor * 0.5;
+            continue;
+        }
+
+        break;
+    }
+
+    float invCount = 1.0 / float(uSampleIndex + 1);
+    vec3 blended = accumulation[index] + radiance;
+    accumulation[index] = blended;
+    writeRgba(index, blended * invCount);
+}
