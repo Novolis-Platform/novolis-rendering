@@ -26,14 +26,20 @@ Simulation.View (ViewPose) → RenderCamera → IRayTracer → ImageBuffer → R
 | `Novolis.Rendering.Raytrace` | Abstractions, Math | `CpuRayTracer`, intersection helpers |
 | `Novolis.Rendering` | Facets above | Meta / convenience reference |
 
-## Presentation (out of scope here)
+## Roadmap
 
-Future optional packages:
+Full phased plan (materials, compile pipeline, backends, Raylib/Silk presenters):
 
-- `Novolis.Raylib.Presentation` — upload `ImageBuffer` to `Texture`, blit in `IRenderSystem`
-- `Novolis.Silk.Presentation` — same contract, different API
+**[roadmap-raytracing.md](roadmap-raytracing.md)**
 
-Golden tests for the tracer use PNG hashes over `ImageBuffer` bytes without native Raylib.
+## Presentation (out of scope in core packages)
+
+Optional host packages — **no scene/material types**:
+
+- `Novolis.Raylib.Presentation` (in `novolis-raylib`) — `IFramePresenter` → texture blit
+- `Novolis.Silk.Presentation` — same contract via Silk.NET
+
+Golden tests for the tracer use PNG hashes over CPU pixels without native Raylib.
 
 ## Acceleration
 
