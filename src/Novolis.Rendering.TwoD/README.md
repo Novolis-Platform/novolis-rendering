@@ -2,6 +2,14 @@
 
 Host-neutral 2D scene model for orthographic platformers (Mario-style): backgrounds, sprite animation, static polygons with colliders, HUD, and menus.
 
+## Install
+
+```bash
+dotnet add package Novolis.Rendering.TwoD
+```
+
+**Prerequisites:** [.NET 10 SDK](https://dotnet.microsoft.com/download) (`net10.0`).
+
 ## Quick start
 
 ```csharp

@@ -23,6 +23,6 @@ public sealed class TwoDSpriteInstance
     /// <summary>Sort key within the same layer (higher draws on top).</summary>
     public int SortKey { get; set; }
 
-    /// <summary>When true, <see cref="Transform.Position"/> is in screen pixels (origin top-left).</summary>
+    /// <summary>When true, <see cref="TwoDTransform.Position"/> is in screen pixels (origin top-left).</summary>
     public bool ScreenSpace { get; set; }
 }

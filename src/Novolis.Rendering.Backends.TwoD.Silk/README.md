@@ -2,6 +2,14 @@
 
 Silk.NET OpenGL backend for `Novolis.Rendering.TwoD`.
 
+## Install
+
+```bash
+dotnet add package Novolis.Rendering.Backends.TwoD.Silk
+```
+
+**Prerequisites:** [.NET 10 SDK](https://dotnet.microsoft.com/download) (`net10.0`).
+
 ## Features
 
 - Orthographic world rendering (XZ plane)
