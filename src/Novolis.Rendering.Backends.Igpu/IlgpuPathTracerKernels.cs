@@ -12,6 +12,8 @@ internal static class IlgpuPathTracerKernels
     private const float Epsilon = 1e-4f;
     private const int MaxLights = 8;
     private const int BvhStackCapacity = 64;
+    private const float DisplayExposure = 2f;
+    private const float AmbientStrength = 0.08f;
 
     public static void TracePixelKernel(
         Index1D index,
@@ -43,7 +45,7 @@ internal static class IlgpuPathTracerKernels
 
         for (var depth = 0; depth < MaxDepth; depth++)
         {
-            if (!IntersectScene(origin, direction, triangles, bvhNodes, bvhRootIndex, triangleOrder, out var hit))
+            if (!IntersectScene(origin, direction, triangles, bvhNodes, bvhRootIndex, triangleOrder, float.MaxValue, out var hit))
             {
                 radiance = Float3.Add(radiance, Float3.Mul(throughput, SampleSky(direction)));
                 break;
@@ -56,7 +58,9 @@ internal static class IlgpuPathTracerKernels
                 break;
             }
 
-            radiance = Float3.Add(radiance, Float3.Mul(throughput, DirectLighting(hit, mat, lights, lightCount, triangles, bvhNodes, bvhRootIndex, triangleOrder)));
+            radiance = Float3.Add(
+                radiance,
+                Float3.Mul(throughput, DirectLighting(direction, hit, mat, lights, lightCount, triangles, bvhNodes, bvhRootIndex, triangleOrder)));
 
             if (depth + 1 >= MaxDepth)
             {
@@ -98,6 +102,7 @@ internal static class IlgpuPathTracerKernels
     }
 
     private static Float3 DirectLighting(
+        Float3 incomingDirection,
         Hit hit,
         GpuMaterial mat,
         ArrayView<GpuLight> lights,
@@ -113,6 +118,7 @@ internal static class IlgpuPathTracerKernels
         var emissionStrength = mat.B.Y;
         var emissionColor = new Float3(mat.C.X, mat.C.Y, mat.C.Z);
         var n = hit.Normal;
+        var v = Float3.Normalize(Float3.Scale(incomingDirection, -1f));
         var radiance = Float3.Scale(emissionColor, emissionStrength);
         var lightsToProcess = TracerMath.Min(lightCount, MaxLights);
 
@@ -131,20 +137,19 @@ internal static class IlgpuPathTracerKernels
                 ? 1e6f
                 : Float3.Length(Float3.Sub(lightPos, hit.Point));
 
-            if (!ShadowClear(hit.Point, lightDir, maxDist, triangles, bvhNodes, bvhRootIndex, triangleOrder))
+            if (!ShadowClear(hit.Point, hit.Normal, lightDir, maxDist, triangles, bvhNodes, bvhRootIndex, triangleOrder))
             {
                 continue;
             }
 
             var ndotl = TracerMath.Max(0f, Float3.Dot(n, lightDir));
             var diffuse = Float3.Scale(baseColor, 1f - metallic);
-            var v = Float3.Normalize(Float3.Scale(lightDir, -1f));
             var spec = GgxSpec(n, v, lightDir, roughness, Float3.One);
             var lightColor = new Float3(light.Color.X, light.Color.Y, light.Color.Z);
             radiance = Float3.Add(radiance, Float3.Mul(Float3.Add(Float3.Scale(diffuse, ndotl), spec), Float3.Scale(lightColor, light.Intensity)));
         }
 
-        return Float3.Add(radiance, Float3.Scale(baseColor, 0.03f));
+        return Float3.Add(radiance, Float3.Scale(baseColor, AmbientStrength));
     }
 
     private static bool IntersectScene(
@@ -154,12 +159,13 @@ internal static class IlgpuPathTracerKernels
         ArrayView<GpuBvhNode> bvhNodes,
         int bvhRootIndex,
         ArrayView<int> triangleOrder,
+        float maxT,
         out Hit hit)
     {
         hit = default;
         if (bvhRootIndex >= 0 && bvhNodes.Length > 0)
         {
-            var bestT = float.MaxValue;
+            var bestT = maxT;
             var found = false;
             var stack = new int[BvhStackCapacity];
             var stackSize = 0;
@@ -203,17 +209,18 @@ internal static class IlgpuPathTracerKernels
             return found;
         }
 
-        return IntersectBrute(origin, direction, triangles, out hit);
+        return IntersectBrute(origin, direction, triangles, maxT, out hit);
     }
 
     private static bool IntersectBrute(
         Float3 origin,
         Float3 direction,
         ArrayView<GpuTriangle> triangles,
+        float maxT,
         out Hit hit)
     {
         hit = default;
-        var bestT = float.MaxValue;
+        var bestT = maxT;
         var found = false;
         for (var i = 0; i < triangles.Length; i++)
         {
@@ -233,6 +240,7 @@ internal static class IlgpuPathTracerKernels
 
     private static bool ShadowClear(
         Float3 origin,
+        Float3 normal,
         Float3 direction,
         float maxDist,
         ArrayView<GpuTriangle> triangles,
@@ -240,7 +248,8 @@ internal static class IlgpuPathTracerKernels
         int bvhRootIndex,
         ArrayView<int> triangleOrder)
     {
-        return !IntersectScene(Float3.Add(origin, Float3.Scale(direction, Epsilon)), direction, triangles, bvhNodes, bvhRootIndex, triangleOrder, out _);
+        var shadowOrigin = Float3.Add(origin, Float3.Scale(normal, Epsilon));
+        return !IntersectScene(shadowOrigin, direction, triangles, bvhNodes, bvhRootIndex, triangleOrder, maxDist, out _);
     }
 
     private static bool TriangleHit(
@@ -392,7 +401,7 @@ internal static class IlgpuPathTracerKernels
         display[offset + 3] = 255;
     }
 
-    private static byte ToByte(float v) => (byte)TracerMath.Clamp((int)(v * 255f), 0, 255);
+    private static byte ToByte(float v) => (byte)TracerMath.Clamp((int)(v * DisplayExposure * 255f), 0, 255);
 
     private static uint CreateRng(Index1D index, int sampleIndex, int width) =>
         (uint)(42 + sampleIndex * 100_000 + index * 7919 + width);

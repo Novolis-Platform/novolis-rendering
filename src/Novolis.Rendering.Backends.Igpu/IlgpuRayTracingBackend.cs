@@ -48,7 +48,8 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
         }
 
         _context = Context.CreateDefault();
-        _accelerator = _context.GetPreferredDevice(preferCPU: false).CreateAccelerator(_context);
+        var device = IlgpuDeviceSelector.SelectDevice(_context);
+        _accelerator = device.CreateAccelerator(_context);
         _useGpu = _accelerator.AcceleratorType != AcceleratorType.CPU;
         if (!_useGpu)
         {
