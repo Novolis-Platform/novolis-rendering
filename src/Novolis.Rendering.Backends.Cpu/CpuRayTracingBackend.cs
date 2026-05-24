@@ -1,3 +1,4 @@
+using System.Numerics;
 using Novolis.Math.Geometry;
 using Novolis.Rendering.Abstractions;
 using Novolis.Rendering.Presentation.Abstractions;
@@ -47,7 +48,7 @@ public sealed class CpuRayTracingBackend : IRayTracingBackend
 
         PathTracerEngine.RenderSample(
             _accumulation,
-            _display.AsSpan(),
+            _display.Pixels,
             _display.Width,
             _display.Height,
             camera,

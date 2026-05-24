@@ -4,7 +4,7 @@ using Novolis.Math.Geometry;
 namespace Novolis.Rendering.Materials;
 
 /// <summary>Authoring presets for common material looks.</summary>
-public static class Materials
+public static class MaterialPresets
 {
     public static StandardMaterial Standard(Vector3 color, float roughness = 0.5f, float metallic = 0f) =>
         new() { BaseColor = color, Roughness = roughness, Metallic = metallic };

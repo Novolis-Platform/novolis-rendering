@@ -12,8 +12,8 @@ public sealed class SceneCompilerTests
     public async Task Compile_UnitCubeRoom_HasTrianglesAndBvh()
     {
         var scene = new SceneBuilder()
-            .AddGround(Materials.Standard(Vector3.One, 0.8f))
-            .AddBox(Vector3.Zero, new Vector3(0.25f), Materials.Metal(Materials.Colors.Silver))
+            .AddGround(MaterialPresets.Standard(Vector3.One, 0.8f))
+            .AddBox(Vector3.Zero, new Vector3(0.25f), MaterialPresets.Metal(MaterialPresets.Colors.Silver))
             .AddDirectionalLight(new Vector3(0, -1, 0), Vector3.One)
             .Build();
 

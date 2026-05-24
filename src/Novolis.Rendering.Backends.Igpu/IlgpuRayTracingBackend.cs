@@ -9,7 +9,7 @@ namespace Novolis.Rendering.Backends.Igpu;
 /// <summary>ILGPU compute backend; falls back to CPU path tracer when no GPU accelerator is available.</summary>
 public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
 {
-    private readonly CpuRayTracingBackend _cpuFallback = new();
+    private readonly CpuRayTracingBackend _cpuFallback = new(deterministic: true);
     private readonly Context _context;
     private readonly Accelerator _accelerator;
 

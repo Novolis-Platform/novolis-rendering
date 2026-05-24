@@ -13,8 +13,8 @@ public static class DemoSceneFactory
     public static CompiledScene UnitCubeRoom()
     {
         var scene = new SceneBuilder()
-            .AddGround(Materials.Standard(new Vector3(0.35f, 0.37f, 0.4f), 0.9f))
-            .AddBox(new Vector3(0f, 0.25f, 0f), new Vector3(0.25f, 0.25f, 0.25f), Materials.Metal(Materials.Colors.Silver, 0.08f))
+            .AddGround(MaterialPresets.Standard(new Vector3(0.35f, 0.37f, 0.4f), 0.9f))
+            .AddBox(new Vector3(0f, 0.25f, 0f), new Vector3(0.25f, 0.25f, 0.25f), MaterialPresets.Metal(MaterialPresets.Colors.Silver, 0.08f))
             .AddDirectionalLight(new Vector3(-0.4f, -1f, -0.3f), Vector3.One)
             .Build();
         return SceneCompiler.Compile(scene);
@@ -22,6 +22,7 @@ public static class DemoSceneFactory
 }
 
 /// <summary>Legacy bootstrap tracer; prefer <see cref="CpuRayTracingBackend"/>.</summary>
+#pragma warning disable CS0618
 [Obsolete("Use CpuRayTracingBackend with CompiledScene.")]
 public sealed class CpuRayTracer : IRayTracer
 {
@@ -57,7 +58,7 @@ internal static class BootstrapSceneAdapter
             builder.AddMesh(
                 mesh.Vertices,
                 mesh.TriangleIndices,
-                Materials.Standard(
+                MaterialPresets.Standard(
                     new Vector3(mesh.Color.R / 255f, mesh.Color.G / 255f, mesh.Color.B / 255f),
                     0.6f));
         }
@@ -66,3 +67,4 @@ internal static class BootstrapSceneAdapter
         return SceneCompiler.Compile(builder.Build());
     }
 }
+#pragma warning restore CS0618

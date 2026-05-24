@@ -1,5 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Novolis.Rendering.Backends.Cpu;
+using Novolis.Rendering.Backends.Igpu;
+using Novolis.Rendering.Backends.Vulkan;
 using Novolis.Rendering.Compile;
 using Novolis.Rendering.Runtime;
 

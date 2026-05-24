@@ -7,7 +7,7 @@ namespace Novolis.Rendering.Backends.Vulkan;
 /// <summary>Vulkan compute backend placeholder; renders via embedded CPU path tracer until compute pipelines ship.</summary>
 public sealed class VulkanRayTracingBackend : IRayTracingBackend
 {
-    private readonly CpuRayTracingBackend _inner = new();
+    private readonly CpuRayTracingBackend _inner = new(deterministic: true);
 
     public IRenderOutput Output => _inner.Output;
 

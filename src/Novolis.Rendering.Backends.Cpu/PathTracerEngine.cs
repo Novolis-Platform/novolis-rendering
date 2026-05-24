@@ -10,24 +10,24 @@ internal static class PathTracerEngine
     private const float Epsilon = 1e-4f;
 
     public static void RenderSample(
-        Span<Vector3> accumulation,
-        Span<Rgba32> display,
+        Vector3[] accumulation,
+        Rgba32[] display,
         int width,
         int height,
-        in CameraSnapshot camera,
+        CameraSnapshot camera,
         CompiledScene scene,
         int sampleIndex,
         bool deterministic)
     {
-        var rng = deterministic
-            ? new Random(42 + sampleIndex)
-            : new Random(HashCode.Combine(sampleIndex, Environment.TickCount));
-
         var invCount = 1f / (sampleIndex + 1);
-        ParallelOptions options = deterministic ? new() { MaxDegreeOfParallelism = 1 } : default;
+        var options = deterministic ? new ParallelOptions { MaxDegreeOfParallelism = 1 } : new ParallelOptions();
 
         Parallel.For(0, height, options, y =>
         {
+            var rng = deterministic
+                ? new Random(42 + sampleIndex * 100_000 + y * width)
+                : new Random(HashCode.Combine(y, sampleIndex, Environment.TickCount));
+
             var tanHalfFov = MathF.Tan(camera.VerticalFovRadians * 0.5f);
             var aspect = (float)width / height;
             for (var x = 0; x < width; x++)
@@ -40,11 +40,9 @@ internal static class PathTracerEngine
                 var ray = new Ray3(camera.Position, dir);
                 var radiance = Trace(in ray, scene, 0, ref rng);
                 var idx = y * width + x;
-                var prev = accumulation[idx];
-                var blended = prev + radiance;
+                var blended = accumulation[idx] + radiance;
                 accumulation[idx] = blended;
-                var avg = blended * invCount;
-                display[idx] = ToRgba(avg);
+                display[idx] = ToRgba(blended * invCount);
             }
         });
     }
@@ -56,7 +54,7 @@ internal static class PathTracerEngine
             return SampleSky(ray.Direction);
         }
 
-        ref readonly var mat = ref scene.Materials[hit.MaterialIndex];
+        var mat = scene.Materials[hit.MaterialIndex];
         return mat.Model switch
         {
             MaterialModel.Emissive => EmissiveShade(mat),
@@ -101,15 +99,9 @@ internal static class PathTracerEngine
             radiance += (diffuse * ndotl + spec) * light.Color * light.Intensity;
         }
 
-        var ambient = baseColor * 0.03f;
-        radiance += ambient;
+        radiance += baseColor * 0.03f;
 
-        if (depth >= MaxDepth)
-        {
-            return radiance;
-        }
-
-        if (roughness > 0.01f && rng.NextDouble() > metallic)
+        if (depth < MaxDepth && roughness > 0.01f && rng.NextDouble() > metallic)
         {
             var bounceDir = CosineHemisphere(n, ref rng);
             var bounce = new Ray3(hit.Point + n * Epsilon, bounceDir);
@@ -175,8 +167,11 @@ internal static class PathTracerEngine
         return Vector3.Lerp(standard, blood * subsurface + baseColor * 0.5f, subsurface * 0.35f);
     }
 
-    private static Vector3 EmissiveShade(GpuMaterial mat) =>
-        new(mat.A.X, mat.A.Y, mat.A.Z) * mat.A.W;
+    private static Vector3 EmissiveShade(GpuMaterial mat)
+    {
+        var color = new Vector3(mat.A.X, mat.A.Y, mat.A.Z);
+        return color * mat.A.W;
+    }
 
     private static Vector3 GgxSpec(Vector3 n, Vector3 v, Vector3 l, float roughness, Vector3 f0)
     {
