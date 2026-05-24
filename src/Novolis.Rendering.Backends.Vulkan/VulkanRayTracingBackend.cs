@@ -21,6 +21,8 @@ public sealed class VulkanRayTracingBackend : IRayTracingBackend, IDisposable
     private int _height;
     private VulkanOutputSurface? _surface;
 
+    /// <summary>Creates a Vulkan compute backend; falls back to CPU when unavailable or deterministic.</summary>
+    /// <param name="deterministic">When true, uses a deterministic CPU tracer.</param>
     public VulkanRayTracingBackend(bool deterministic = false)
     {
         _deterministic = deterministic;
@@ -42,16 +44,21 @@ public sealed class VulkanRayTracingBackend : IRayTracingBackend, IDisposable
         }
     }
 
+    /// <inheritdoc />
     public string BackendLabel => _cpuFallback is not null
         ? "Vulkan (CPU fallback)"
         : _device!.DeviceName;
 
+    /// <inheritdoc />
     public IRenderGpuSurface? GpuSurface => _surface;
 
+    /// <inheritdoc />
     public IRenderOutput Output => _cpuFallback?.Output ?? _output;
 
+    /// <inheritdoc />
     public int SampleCount => _cpuFallback?.SampleCount ?? _sampleCount;
 
+    /// <inheritdoc />
     public ValueTask ResizeAsync(int width, int height, CancellationToken cancellationToken = default)
     {
         if (_cpuFallback is not null)
@@ -73,6 +80,7 @@ public sealed class VulkanRayTracingBackend : IRayTracingBackend, IDisposable
         return ValueTask.CompletedTask;
     }
 
+    /// <inheritdoc />
     public ValueTask UploadSceneAsync(CompiledScene scene, CancellationToken cancellationToken = default)
     {
         if (_cpuFallback is not null)
@@ -90,6 +98,7 @@ public sealed class VulkanRayTracingBackend : IRayTracingBackend, IDisposable
         return ValueTask.CompletedTask;
     }
 
+    /// <inheritdoc />
     public ValueTask RenderAsync(CameraSnapshot camera, int sampleIndex, CancellationToken cancellationToken = default)
     {
         if (_cpuFallback is not null)
@@ -113,6 +122,7 @@ public sealed class VulkanRayTracingBackend : IRayTracingBackend, IDisposable
         return ValueTask.CompletedTask;
     }
 
+    /// <inheritdoc />
     public void ResetAccumulation()
     {
         if (_cpuFallback is not null)
@@ -127,6 +137,7 @@ public sealed class VulkanRayTracingBackend : IRayTracingBackend, IDisposable
         }
     }
 
+    /// <summary>Releases Vulkan device resources.</summary>
     public void Dispose()
     {
         _device?.Dispose();
@@ -141,12 +152,16 @@ public sealed class VulkanRayTracingBackend : IRayTracingBackend, IDisposable
 
     private sealed class VulkanOutputSurface(IRenderOutput output, VulkanComputeDevice device) : ICpuBackedGpuSurface
     {
+        /// <inheritdoc />
         public nint NativeHandle => device.DisplayBufferHandle;
 
+        /// <inheritdoc />
         public int Width => output.TryGetCpuPixels(out _, out var w, out _) ? w : 0;
 
+        /// <inheritdoc />
         public int Height => output.TryGetCpuPixels(out _, out _, out var h) ? h : 0;
 
+        /// <inheritdoc />
         public bool TryGetCpuPixels(out ReadOnlySpan<Rgba32> pixels, out int width, out int height) =>
             output.TryGetCpuPixels(out pixels, out width, out height);
     }

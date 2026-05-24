@@ -17,16 +17,23 @@ public sealed class CpuRayTracingBackend : IRayTracingBackend
     private CompiledScene _scene = CompiledScene.Empty;
     private int _sampleCount;
 
+    /// <summary>Creates a CPU path tracer, optionally with deterministic sampling for tests.</summary>
+    /// <param name="deterministic">When true, uses a fixed RNG sequence.</param>
     public CpuRayTracingBackend(bool deterministic = false) => _deterministic = deterministic;
 
+    /// <inheritdoc />
     public string BackendLabel => _deterministic ? "CPU (deterministic)" : "CPU";
 
+    /// <inheritdoc />
     public IRenderGpuSurface? GpuSurface => null;
 
+    /// <inheritdoc />
     public IRenderOutput Output => _output;
 
+    /// <inheritdoc />
     public int SampleCount => _sampleCount;
 
+    /// <inheritdoc />
     public ValueTask ResizeAsync(int width, int height, CancellationToken cancellationToken = default)
     {
         lock (_renderLock)
@@ -41,6 +48,7 @@ public sealed class CpuRayTracingBackend : IRayTracingBackend
         return ValueTask.CompletedTask;
     }
 
+    /// <inheritdoc />
     public ValueTask UploadSceneAsync(CompiledScene scene, CancellationToken cancellationToken = default)
     {
         lock (_renderLock)
@@ -52,6 +60,7 @@ public sealed class CpuRayTracingBackend : IRayTracingBackend
         return ValueTask.CompletedTask;
     }
 
+    /// <inheritdoc />
     public ValueTask RenderAsync(CameraSnapshot camera, int sampleIndex, CancellationToken cancellationToken = default)
     {
         lock (_renderLock)
@@ -79,6 +88,7 @@ public sealed class CpuRayTracingBackend : IRayTracingBackend
         }
     }
 
+    /// <inheritdoc />
     public void ResetAccumulation()
     {
         lock (_renderLock)

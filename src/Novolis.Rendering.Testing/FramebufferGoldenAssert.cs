@@ -7,6 +7,9 @@ namespace Novolis.Rendering.Testing;
 /// <summary>Golden PNG SHA256 assertions over CPU render output (no native window).</summary>
 public static class FramebufferGoldenAssert
 {
+    /// <summary>Computes a lowercase hex SHA-256 over raw RGBA bytes.</summary>
+    /// <param name="pixels">Framebuffer pixels.</param>
+    /// <returns>Hex digest suitable for golden file comparison.</returns>
     public static string Sha256Hex(ReadOnlySpan<Rgba32> pixels)
     {
         var bytes = new byte[pixels.Length * 4];
@@ -22,6 +25,10 @@ public static class FramebufferGoldenAssert
         return Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
     }
 
+    /// <summary>Hashes CPU pixels from a render output.</summary>
+    /// <param name="output">Render output exposing CPU pixels.</param>
+    /// <returns>Hex SHA-256 digest.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when no CPU pixels are available.</exception>
     public static string Sha256Hex(IRenderOutput output)
     {
         if (!output.TryGetCpuPixels(out var pixels, out _, out _))

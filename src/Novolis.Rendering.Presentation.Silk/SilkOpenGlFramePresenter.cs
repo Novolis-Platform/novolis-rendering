@@ -47,8 +47,11 @@ public sealed class SilkOpenGlFramePresenter : IFramePresenter, IDisposable
     private bool _initialized;
     private bool _disposed;
 
+    /// <summary>Creates a presenter for the given Silk window.</summary>
+    /// <param name="window">Target window (OpenGL context).</param>
     public SilkOpenGlFramePresenter(IWindow window) => _window = window;
 
+    /// <inheritdoc />
     public void PresentCpuFrame(ReadOnlySpan<Rgba32> pixels, int width, int height)
     {
         var byteCount = width * height * 4;
@@ -124,6 +127,7 @@ public sealed class SilkOpenGlFramePresenter : IFramePresenter, IDisposable
         DrawQuad();
     }
 
+    /// <summary>Releases GL objects created by <see cref="Initialize"/>.</summary>
     public void Dispose()
     {
         if (_disposed)

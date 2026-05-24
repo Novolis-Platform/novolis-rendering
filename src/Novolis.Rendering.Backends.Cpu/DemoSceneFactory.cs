@@ -10,6 +10,8 @@ namespace Novolis.Rendering.Backends.Cpu;
 /// <summary>Builds a demo scene for tests and samples.</summary>
 public static class DemoSceneFactory
 {
+    /// <summary>Builds a small room with ground, metal cube, and directional light.</summary>
+    /// <returns>A compiled demo scene.</returns>
     public static CompiledScene UnitCubeRoom()
     {
         var scene = new SceneBuilder()
@@ -29,6 +31,7 @@ public sealed class CpuRayTracer : IRayTracer
     private readonly CpuRayTracingBackend _backend = new(deterministic: true);
     private CompiledScene _scene = CompiledScene.Empty;
 
+    /// <inheritdoc />
     public void Render(ImageBuffer target, in RenderCamera camera, RenderScene scene)
     {
         _scene = BootstrapSceneAdapter.CompileLegacy(scene);

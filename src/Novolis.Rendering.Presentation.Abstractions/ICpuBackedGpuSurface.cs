@@ -8,5 +8,10 @@ namespace Novolis.Rendering.Presentation.Abstractions;
 /// </summary>
 public interface ICpuBackedGpuSurface : IRenderGpuSurface
 {
+    /// <summary>Reads CPU-accessible pixels when the backend exposes a staging copy.</summary>
+    /// <param name="pixels">Pixel span when successful.</param>
+    /// <param name="width">Framebuffer width.</param>
+    /// <param name="height">Framebuffer height.</param>
+    /// <returns><see langword="true"/> when CPU pixels are available.</returns>
     bool TryGetCpuPixels(out ReadOnlySpan<Rgba32> pixels, out int width, out int height);
 }

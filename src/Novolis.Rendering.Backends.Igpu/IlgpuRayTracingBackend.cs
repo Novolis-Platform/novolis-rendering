@@ -38,6 +38,8 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
         ArrayView<GpuTriangle>, ArrayView<GpuMaterial>, ArrayView<GpuLight>, int, ArrayView<GpuBvhNode>, int,
         ArrayView<int>>? _traceKernel;
 
+    /// <summary>Creates an ILGPU backend; uses CPU fallback when deterministic or when no GPU is available.</summary>
+    /// <param name="deterministic">When true, delegates to a deterministic CPU tracer.</param>
     public IlgpuRayTracingBackend(bool deterministic = false)
     {
         _deterministic = deterministic;
@@ -57,14 +59,19 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
         }
     }
 
+    /// <inheritdoc />
     public string BackendLabel => _useGpu ? $"ILGPU ({_accelerator!.Name})" : "ILGPU (CPU fallback)";
 
+    /// <inheritdoc />
     public IRenderGpuSurface? GpuSurface => null;
 
+    /// <inheritdoc />
     public IRenderOutput Output => _cpuFallback?.Output ?? _output;
 
+    /// <inheritdoc />
     public int SampleCount => _cpuFallback?.SampleCount ?? _sampleCount;
 
+    /// <inheritdoc />
     public ValueTask ResizeAsync(int width, int height, CancellationToken cancellationToken = default)
     {
         if (_cpuFallback is not null)
@@ -95,6 +102,7 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
         return ValueTask.CompletedTask;
     }
 
+    /// <inheritdoc />
     public ValueTask UploadSceneAsync(CompiledScene scene, CancellationToken cancellationToken = default)
     {
         if (_cpuFallback is not null)
@@ -118,6 +126,7 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
         return ValueTask.CompletedTask;
     }
 
+    /// <inheritdoc />
     public ValueTask RenderAsync(CameraSnapshot camera, int sampleIndex, CancellationToken cancellationToken = default)
     {
         if (_cpuFallback is not null)
@@ -139,6 +148,7 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
         return ValueTask.CompletedTask;
     }
 
+    /// <inheritdoc />
     public void ResetAccumulation()
     {
         if (_cpuFallback is not null)
@@ -153,6 +163,7 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
         }
     }
 
+    /// <summary>Releases ILGPU device and GPU buffers.</summary>
     public void Dispose()
     {
         ReleaseGpuSceneBuffers();

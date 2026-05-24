@@ -9,12 +9,22 @@ public sealed class SceneBuilder
     private readonly List<MeshInstance> _meshes = [];
     private readonly List<LightDefinition> _lights = [];
 
+    /// <summary>Adds a mesh instance with an optional transform.</summary>
+    /// <param name="vertices">Local-space vertices.</param>
+    /// <param name="indices">Triangle indices.</param>
+    /// <param name="material">Surface material.</param>
+    /// <param name="transform">Instance transform (identity when default).</param>
+    /// <returns>This builder for chaining.</returns>
     public SceneBuilder AddMesh(Vector3[] vertices, int[] indices, IMaterial material, Matrix4x4 transform = default)
     {
         _meshes.Add(new MeshInstance(vertices, indices, material, transform == default ? Matrix4x4.Identity : transform));
         return this;
     }
 
+    /// <summary>Adds a horizontal ground quad centered at the origin.</summary>
+    /// <param name="material">Ground material.</param>
+    /// <param name="size">Edge length of the square ground plane.</param>
+    /// <returns>This builder for chaining.</returns>
     public SceneBuilder AddGround(IMaterial material, float size = 2f)
     {
         var h = size * 0.5f;
@@ -29,6 +39,11 @@ public sealed class SceneBuilder
             material);
     }
 
+    /// <summary>Adds an axis-aligned box mesh.</summary>
+    /// <param name="center">Box center in world space.</param>
+    /// <param name="halfExtents">Half extents along each axis.</param>
+    /// <param name="material">Surface material.</param>
+    /// <returns>This builder for chaining.</returns>
     public SceneBuilder AddBox(Vector3 center, Vector3 halfExtents, IMaterial material)
     {
         var x = halfExtents.X;
@@ -52,11 +67,18 @@ public sealed class SceneBuilder
         return AddMesh(verts, indices, material);
     }
 
+    /// <summary>Adds a directional light.</summary>
+    /// <param name="direction">Light direction (normalized internally).</param>
+    /// <param name="color">Linear RGB color.</param>
+    /// <param name="intensity">Intensity multiplier.</param>
+    /// <returns>This builder for chaining.</returns>
     public SceneBuilder AddDirectionalLight(Vector3 direction, Vector3 color, float intensity = 1f)
     {
         _lights.Add(new LightDefinition(LightKind.Directional, Vector3.Normalize(direction), color, intensity));
         return this;
     }
 
+    /// <summary>Materializes the authoring scene.</summary>
+    /// <returns>A <see cref="Scene"/> containing accumulated meshes and lights.</returns>
     public Scene Build() => new(_meshes, _lights);
 }

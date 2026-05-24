@@ -15,12 +15,16 @@ public sealed class SilkGameContext
     private int _height;
     private float _dt;
 
+    /// <summary>Current framebuffer width in pixels.</summary>
     public int Width => _width;
 
+    /// <summary>Current framebuffer height in pixels.</summary>
     public int Height => _height;
 
+    /// <summary>Elapsed time since the last frame in seconds.</summary>
     public float DeltaSeconds => _dt;
 
+    /// <summary>OpenGL presenter bound to the window.</summary>
     public SilkOpenGlFramePresenter FramePresenter =>
         _presenter ?? throw new InvalidOperationException("Silk presenter is not bound.");
 
@@ -47,13 +51,20 @@ public sealed class SilkGameContext
         }
     }
 
+    /// <summary>Returns whether <paramref name="key"/> is held down.</summary>
+    /// <param name="key">Silk key code.</param>
+    /// <returns><see langword="true"/> when any keyboard reports the key pressed.</returns>
     public bool IsKeyDown(Key key) => AnyKeyboard(k => k.IsKeyPressed(key));
 
     /// <summary>True only on the frame the key transitioned to down (Raylib-style pressed).</summary>
     public bool IsKeyPressed(Key key) => IsKeyDown(key) && !_keysDownLastFrame.Contains(key);
 
+    /// <summary>Returns whether the reset key (<c>R</c>) was pressed this frame.</summary>
+    /// <returns><see langword="true"/> on the transition to down.</returns>
     public bool IsResetPressed() => IsKeyPressed(Key.R);
 
+    /// <summary>Returns whether the orbit toggle key (space) was pressed this frame.</summary>
+    /// <returns><see langword="true"/> on the transition to down.</returns>
     public bool IsOrbitTogglePressed() => IsKeyPressed(Key.Space);
 
     internal void EndInputFrame()

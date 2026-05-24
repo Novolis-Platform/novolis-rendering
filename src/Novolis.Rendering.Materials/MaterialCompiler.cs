@@ -1,5 +1,4 @@
 using System.Numerics;
-using Novolis.Rendering.Materials;
 using Novolis.Rendering.Runtime;
 
 namespace Novolis.Rendering.Materials;
@@ -7,6 +6,10 @@ namespace Novolis.Rendering.Materials;
 /// <summary>Compiles authoring materials into flat <see cref="GpuMaterial"/> records.</summary>
 public static class MaterialCompiler
 {
+    /// <summary>Compiles any supported <see cref="IMaterial"/> into a <see cref="GpuMaterial"/>.</summary>
+    /// <param name="material">Authoring material instance.</param>
+    /// <returns>Blittable GPU material.</returns>
+    /// <exception cref="ArgumentException">Thrown for unknown material types.</exception>
     public static GpuMaterial Compile(IMaterial material) => material switch
     {
         StandardMaterial s => CompileStandard(s),

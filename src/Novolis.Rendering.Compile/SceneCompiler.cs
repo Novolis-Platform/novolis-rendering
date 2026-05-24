@@ -10,6 +10,9 @@ namespace Novolis.Rendering.Compile;
 /// <summary>Compiles authoring scenes into flat runtime structures.</summary>
 public static class SceneCompiler
 {
+    /// <summary>Compiles meshes, materials, lights, and a BVH into a <see cref="CompiledScene"/>.</summary>
+    /// <param name="scene">Authoring scene graph.</param>
+    /// <returns>Flat runtime scene for backends.</returns>
     public static CompiledScene Compile(Novolis.Rendering.Scene.Scene scene)
     {
         ArgumentNullException.ThrowIfNull(scene);

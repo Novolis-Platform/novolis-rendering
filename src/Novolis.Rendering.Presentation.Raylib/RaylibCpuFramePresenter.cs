@@ -13,6 +13,7 @@ public sealed class RaylibCpuFramePresenter : IFramePresenter, IDisposable
     private int _height;
     private byte[]? _uploadBuffer;
 
+    /// <inheritdoc />
     public void PresentCpuFrame(ReadOnlySpan<Rgba32> pixels, int width, int height)
     {
         EnsureTexture(width, height);
@@ -21,6 +22,7 @@ public sealed class RaylibCpuFramePresenter : IFramePresenter, IDisposable
         Textures.Draw(_texture, 0, 0, Color.White);
     }
 
+    /// <summary>Unloads the Raylib texture when allocated.</summary>
     public void Dispose()
     {
         if (_texture.IsValid)
