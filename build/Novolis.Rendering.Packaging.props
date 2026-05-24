@@ -1,9 +1,9 @@
 <Project>
   <PropertyGroup Label="Novolis.Rendering NuGet metadata">
-    <NovolisRenderingVersion Condition="'$(NovolisRenderingVersion)' == ''">0.0.1.1</NovolisRenderingVersion>
-    <Version Condition="'$(NovolisVersionBuild)' == ''">$(NovolisRenderingVersion)</Version>
+    <NovolisRenderingVersion Condition="'$(NovolisRenderingVersion)' == ''">0.1.0-local</NovolisRenderingVersion>
+    <Version>$(NovolisRenderingVersion)</Version>
     <PackageTags>rendering;raytrace;cpu;framebuffer</PackageTags>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <NoWarn>$(NoWarn);CS1591;NU5104</NoWarn>
   </PropertyGroup>
 </Project>
