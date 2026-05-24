@@ -144,7 +144,8 @@ internal static class IlgpuPathTracerKernels
 
             var ndotl = TracerMath.Max(0f, Float3.Dot(n, lightDir));
             var diffuse = Float3.Scale(baseColor, 1f - metallic);
-            var spec = GgxSpec(n, v, lightDir, roughness, Float3.One);
+            var f0 = Float3.Lerp(new Float3(0.04f, 0.04f, 0.04f), baseColor, metallic);
+            var spec = GgxSpec(n, v, lightDir, roughness, f0);
             var lightColor = new Float3(light.Color.X, light.Color.Y, light.Color.Z);
             radiance = Float3.Add(radiance, Float3.Mul(Float3.Add(Float3.Scale(diffuse, ndotl), spec), Float3.Scale(lightColor, light.Intensity)));
         }
@@ -301,6 +302,11 @@ internal static class IlgpuPathTracerKernels
         }
 
         normal = Float3.Normalize(Float3.Cross(edge1, edge2));
+        if (Float3.Dot(normal, direction) > 0f)
+        {
+            normal = Float3.Scale(normal, -1f);
+        }
+
         return true;
     }
 
@@ -401,7 +407,12 @@ internal static class IlgpuPathTracerKernels
         display[offset + 3] = 255;
     }
 
-    private static byte ToByte(float v) => (byte)TracerMath.Clamp((int)(v * DisplayExposure * 255f), 0, 255);
+    private static byte ToByte(float v)
+    {
+        var exposed = v * DisplayExposure;
+        var gamma = TracerMath.Sqrt(TracerMath.Max(exposed, 0f));
+        return (byte)TracerMath.Clamp((int)(gamma * 255f), 0, 255);
+    }
 
     private static uint CreateRng(Index1D index, int sampleIndex, int width) =>
         (uint)(42 + sampleIndex * 100_000 + index * 7919 + width);
