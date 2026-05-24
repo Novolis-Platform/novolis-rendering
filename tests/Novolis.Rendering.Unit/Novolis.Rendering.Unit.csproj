@@ -14,6 +14,8 @@
     <ProjectReference Include="../../src/Novolis.Rendering.Backends.Vulkan/Novolis.Rendering.Backends.Vulkan.csproj" />
     <ProjectReference Include="../../src/Novolis.Rendering.PathTrace.Demos/Novolis.Rendering.PathTrace.Demos.csproj" />
     <ProjectReference Include="../../src/Novolis.Rendering.Presentation.Silk/Novolis.Rendering.Presentation.Silk.csproj" />
+    <ProjectReference Include="../../src/Novolis.Rendering.TwoD/Novolis.Rendering.TwoD.csproj" />
+    <ProjectReference Include="../../src/Novolis.Rendering.Backends.TwoD.Silk/Novolis.Rendering.Backends.TwoD.Silk.csproj" />
     <ProjectReference Include="../../src/Novolis.Rendering.Compile/Novolis.Rendering.Compile.csproj" />
     <ProjectReference Include="../../src/Novolis.Rendering.DependencyInjection/Novolis.Rendering.DependencyInjection.csproj" />
     <ProjectReference Include="../../src/Novolis.Rendering.Materials/Novolis.Rendering.Materials.csproj" />

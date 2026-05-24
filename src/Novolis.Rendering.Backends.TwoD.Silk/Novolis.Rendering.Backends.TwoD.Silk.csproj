@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="$(MSBuildThisFileDirectory)..\..\build\Novolis.Rendering.Packaging.props" />
+  <PropertyGroup>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RootNamespace>Novolis.Rendering.Backends.TwoD.Silk</RootNamespace>
+    <AssemblyName>Novolis.Rendering.Backends.TwoD.Silk</AssemblyName>
+    <PackageId>Novolis.Rendering.Backends.TwoD.Silk</PackageId>
+    <IsPackable>true</IsPackable>
+    <Description>Silk.NET OpenGL backend for Novolis.Rendering.TwoD.</Description>
+    <PackageTags>rendering;2d;silk;opengl</PackageTags>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Silk.NET.GLFW" />
+    <PackageReference Include="Silk.NET.Input" />
+    <PackageReference Include="Silk.NET.Input.Common" />
+    <PackageReference Include="Silk.NET.Input.Glfw" />
+    <PackageReference Include="Silk.NET.OpenGL" />
+    <PackageReference Include="Silk.NET.Windowing" />
+    <PackageReference Include="Silk.NET.Windowing.Glfw" />
+    <PackageReference Include="StbImageSharp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Novolis.Rendering.TwoD\Novolis.Rendering.TwoD.csproj" />
+  </ItemGroup>
+</Project>

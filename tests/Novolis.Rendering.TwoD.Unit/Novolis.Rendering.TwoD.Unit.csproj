@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Novolis.Rendering.TwoD.Unit</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="TUnit" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Novolis.Rendering.TwoD/Novolis.Rendering.TwoD.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../Novolis.Rendering.Unit/TwoD/*.cs" Link="%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

@@ -6,6 +6,7 @@
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.8" />
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.203" />
     <PackageVersion Include="Novolis.Math.Geometry" Version="2026.1.*" />
+    <PackageVersion Include="Novolis.Math.Topology" Version="2026.1.*" />
     <PackageVersion Include="Novolis.Raylib.Runtime" Version="2026.1.*" />
     <PackageVersion Include="Silk.NET.GLFW" Version="2.22.0" />
     <PackageVersion Include="Silk.NET.Input" Version="2.22.0" />
@@ -17,6 +18,7 @@
     <PackageVersion Include="Silk.NET.Vulkan" Version="2.22.0" />
     <PackageVersion Include="Silk.NET.Windowing" Version="2.22.0" />
     <PackageVersion Include="Silk.NET.Windowing.Glfw" Version="2.22.0" />
+    <PackageVersion Include="StbImageSharp" Version="2.30.15" />
     <PackageVersion Include="TUnit" Version="1.44.39" />
   </ItemGroup>
 </Project>

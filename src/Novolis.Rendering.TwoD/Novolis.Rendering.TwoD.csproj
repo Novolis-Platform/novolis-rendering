@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="$(MSBuildThisFileDirectory)..\..\build\Novolis.Rendering.Packaging.props" />
+  <PropertyGroup>
+    <RootNamespace>Novolis.Rendering.TwoD</RootNamespace>
+    <AssemblyName>Novolis.Rendering.TwoD</AssemblyName>
+    <PackageId>Novolis.Rendering.TwoD</PackageId>
+    <IsPackable>true</IsPackable>
+    <Description>Host-neutral 2D scene model: sprites, animation, static polygons, collision, HUD, and menus.</Description>
+    <PackageTags>rendering;2d;sprites;orthographic</PackageTags>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Novolis.Math.Geometry" />
+    <PackageReference Include="Novolis.Math.Topology" />
+  </ItemGroup>
+</Project>

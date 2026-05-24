@@ -12,11 +12,14 @@
     <Project Path="src/Novolis.Rendering.DependencyInjection/Novolis.Rendering.DependencyInjection.csproj" />
     <Project Path="src/Novolis.Rendering.PathTrace.Demos/Novolis.Rendering.PathTrace.Demos.csproj" />
     <Project Path="src/Novolis.Rendering.Presentation.Silk/Novolis.Rendering.Presentation.Silk.csproj" />
+    <Project Path="src/Novolis.Rendering.TwoD/Novolis.Rendering.TwoD.csproj" />
+    <Project Path="src/Novolis.Rendering.Backends.TwoD.Silk/Novolis.Rendering.Backends.TwoD.Silk.csproj" />
     <Project Path="src/Novolis.Rendering.Presentation.Raylib/Novolis.Rendering.Presentation.Raylib.csproj" />
     <Project Path="src/Novolis.Rendering.Testing/Novolis.Rendering.Testing.csproj" />
     <Project Path="src/Novolis.Rendering/Novolis.Rendering.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Novolis.Rendering.Unit/Novolis.Rendering.Unit.csproj" />
+    <Project Path="tests/Novolis.Rendering.TwoD.Unit/Novolis.Rendering.TwoD.Unit.csproj" />
     </Folder>
 </Solution>
