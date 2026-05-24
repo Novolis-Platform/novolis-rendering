@@ -11,6 +11,7 @@ public sealed class SilkGameContext
     private IInputContext? _input;
     private SilkOpenGlFramePresenter? _presenter;
     private readonly HashSet<Key> _keysDownLastFrame = new();
+    private readonly HashSet<Key> _keysPolledThisFrame = new();
     private int _width;
     private int _height;
     private float _dt;
@@ -54,7 +55,16 @@ public sealed class SilkGameContext
     /// <summary>Returns whether <paramref name="key"/> is held down.</summary>
     /// <param name="key">Silk key code.</param>
     /// <returns><see langword="true"/> when any keyboard reports the key pressed.</returns>
-    public bool IsKeyDown(Key key) => AnyKeyboard(k => k.IsKeyPressed(key));
+    public bool IsKeyDown(Key key)
+    {
+        if (!IsSupportedKey(key))
+        {
+            return false;
+        }
+
+        _keysPolledThisFrame.Add(key);
+        return AnyKeyboard(k => k.IsKeyPressed(key));
+    }
 
     /// <summary>True only on the frame the key transitioned to down (Raylib-style pressed).</summary>
     public bool IsKeyPressed(Key key) => IsKeyDown(key) && !_keysDownLastFrame.Contains(key);
@@ -72,7 +82,7 @@ public sealed class SilkGameContext
         _keysDownLastFrame.Clear();
         foreach (var keyboard in _input?.Keyboards ?? [])
         {
-            foreach (Key key in Enum.GetValues<Key>())
+            foreach (var key in _keysPolledThisFrame)
             {
                 if (keyboard.IsKeyPressed(key))
                 {
@@ -80,7 +90,12 @@ public sealed class SilkGameContext
                 }
             }
         }
+
+        _keysPolledThisFrame.Clear();
     }
+
+    private static bool IsSupportedKey(Key key) =>
+        key != Key.Unknown && (int)key >= 0;
 
     private bool AnyKeyboard(Func<IKeyboard, bool> predicate)
     {
