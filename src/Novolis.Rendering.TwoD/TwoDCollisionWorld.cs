@@ -62,14 +62,13 @@ public sealed class TwoDCollisionWorld
     /// <summary>
     /// Moves a circle actor with axis-separated resolution (Mario-style walk + gravity slides).
     /// </summary>
-    /// <param name="position">Current position; updated on success.</param>
+    /// <param name="position">Current position.</param>
     /// <param name="delta">Desired movement on X and Z.</param>
     /// <param name="radius">Actor collision radius.</param>
     /// <returns>Resolved position after collision.</returns>
     public Vector3 MoveCircle(Vector3 position, Vector3 delta, float radius)
     {
-        var resolved = position;
-        resolved = MoveAxis(resolved, new Vector3(delta.X, 0f, 0f), radius);
+        var resolved = MoveAxis(position, new Vector3(delta.X, 0f, 0f), radius);
         resolved = MoveAxis(resolved, new Vector3(0f, 0f, delta.Z), radius);
         return resolved;
     }
@@ -81,49 +80,21 @@ public sealed class TwoDCollisionWorld
             return position;
         }
 
-        var target = position + axisDelta;
-        if (!Overlaps(target, radius))
+        var lo = 0f;
+        var hi = 1f;
+        for (var i = 0; i < 16; i++)
         {
-            return target;
-        }
-
-        const int maxIterations = 4;
-        var current = position;
-        for (var i = 0; i < maxIterations; i++)
-        {
-            var pushed = current;
-            var any = false;
-            foreach (var c in _static)
+            var mid = (lo + hi) * 0.5f;
+            if (Overlaps(position + axisDelta * mid, radius))
             {
-                if (c.IsTrigger)
-                {
-                    continue;
-                }
-
-                if (TwoDPlanarCollision.TryGetCircleSeparation(
-                        c.Shape,
-                        pushed.X,
-                        pushed.Z,
-                        radius,
-                        out var sep))
-                {
-                    pushed += sep;
-                    any = true;
-                }
+                hi = mid;
             }
-
-            if (!any)
+            else
             {
-                break;
-            }
-
-            current = pushed;
-            if (!Overlaps(current + axisDelta, radius))
-            {
-                return current + axisDelta;
+                lo = mid;
             }
         }
 
-        return current;
+        return position + axisDelta * lo;
     }
 }

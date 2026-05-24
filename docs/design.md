@@ -25,6 +25,10 @@ Simulation.View (ViewPose) → RenderCamera → IRayTracer → ImageBuffer → R
 | `Novolis.Rendering.Abstractions` | `Novolis.Math.Geometry` | Buffers, camera, scene DTOs, `IRayTracer` |
 | `Novolis.Rendering.Raytrace` | Abstractions, Math | `CpuRayTracer`, intersection helpers |
 | `Novolis.Rendering` | Facets above | Meta / convenience reference |
+| `Novolis.Rendering.TwoD` | Math.Geometry, Math.Topology | 2D scene, sprites, collision, HUD, menus |
+| `Novolis.Rendering.Backends.TwoD.Silk` | TwoD, Silk.NET | OpenGL orthographic renderer + game loop |
+
+See **[design-two-d.md](design-two-d.md)** for the Mario-style 2D stack.
 
 ## Roadmap
 
