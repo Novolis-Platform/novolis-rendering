@@ -3,12 +3,12 @@
     <PropertyGroup>
     <NovolisGitHubRepository>novolis-rendering</NovolisGitHubRepository>
   </PropertyGroup>
-<Import Project="$(MSBuildThisFileDirectory).novolis\version.props"
-          Condition="Exists('$(MSBuildThisFileDirectory).novolis\version.props')" />
-
-  <PropertyGroup Label="SDK and packages">
+  <Import Project="$(MSBuildThisFileDirectory)build\version.props"
+          Condition="Exists('$(MSBuildThisFileDirectory)build\version.props')" />
+<PropertyGroup Label="SDK and packages">
     <TargetFramework>net10.0</TargetFramework>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageFloatingVersionsEnabled>true</CentralPackageFloatingVersionsEnabled>
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
