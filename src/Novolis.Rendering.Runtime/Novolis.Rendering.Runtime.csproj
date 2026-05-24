@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="$(MSBuildThisFileDirectory)..\..\build\Novolis.Rendering.Packaging.props" />
+  <PropertyGroup>
+    <RootNamespace>Novolis.Rendering.Runtime</RootNamespace>
+    <AssemblyName>Novolis.Rendering.Runtime</AssemblyName>
+    <PackageId>Novolis.Rendering.Runtime</PackageId>
+    <IsPackable>true</IsPackable>
+    <Description>Flat runtime scene structures and ray tracing backend contracts.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Novolis.Math.Geometry" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Novolis.Rendering.Presentation.Abstractions\Novolis.Rendering.Presentation.Abstractions.csproj" />
+  </ItemGroup>
+</Project>

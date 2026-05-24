@@ -1,13 +1,17 @@
 {
   "packages": {
-    "Novolis.Rendering": {
-      "description": "Rendering composition stack — abstractions and CPU ray tracing."
-    },
-    "Novolis.Rendering.Abstractions": {
-      "description": "Graphics-host-neutral frame buffers, cameras, and ray tracing contracts."
-    },
-    "Novolis.Rendering.Raytrace": {
-      "description": "CPU ray tracer that writes RGBA frames for presentation by host adapters."
-    }
+    "Novolis.Rendering": { "description": "Rendering composition stack meta package." },
+    "Novolis.Rendering.Abstractions": { "description": "Graphics-host-neutral frame buffers and legacy tracer contracts." },
+    "Novolis.Rendering.Presentation.Abstractions": { "description": "Host-neutral presentation contracts for CPU/GPU frames." },
+    "Novolis.Rendering.Runtime": { "description": "Flat runtime scene structures and IRayTracingBackend." },
+    "Novolis.Rendering.Materials": { "description": "Authoring materials and GpuMaterial compilation." },
+    "Novolis.Rendering.Scene": { "description": "Authoring scene graph." },
+    "Novolis.Rendering.Compile": { "description": "SceneCompiler and BVH build." },
+    "Novolis.Rendering.Backends.Cpu": { "description": "CPU path tracing backend." },
+    "Novolis.Rendering.Backends.Igpu": { "description": "ILGPU ray tracing backend." },
+    "Novolis.Rendering.Backends.Vulkan": { "description": "Vulkan compute ray tracing backend." },
+    "Novolis.Rendering.DependencyInjection": { "description": "AddRayTracing DI extensions." },
+    "Novolis.Rendering.Presentation.Silk": { "description": "Silk.NET CPU presenter stub." },
+    "Novolis.Rendering.Testing": { "description": "Golden test helpers for CPU frames." }
   }
 }

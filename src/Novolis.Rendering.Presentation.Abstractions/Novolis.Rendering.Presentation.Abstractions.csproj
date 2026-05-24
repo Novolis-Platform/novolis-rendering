@@ -1,11 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <Import Project="$(MSBuildThisFileDirectory)..\..\build\Novolis.Rendering.Packaging.props" />
   <PropertyGroup>
-    <RootNamespace>Novolis.Rendering.Raytrace</RootNamespace>
-    <AssemblyName>Novolis.Rendering.Raytrace</AssemblyName>
-    <PackageId>Novolis.Rendering.Raytrace</PackageId>
+    <RootNamespace>Novolis.Rendering.Presentation.Abstractions</RootNamespace>
+    <AssemblyName>Novolis.Rendering.Presentation.Abstractions</AssemblyName>
+    <PackageId>Novolis.Rendering.Presentation.Abstractions</PackageId>
     <IsPackable>true</IsPackable>
-    <Description>CPU ray tracer that writes RGBA frames for presentation by Raylib, Silk.NET, or other hosts.</Description>
+    <Description>Host-neutral presentation contracts for CPU and GPU frame output.</Description>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Novolis.Math.Geometry" />

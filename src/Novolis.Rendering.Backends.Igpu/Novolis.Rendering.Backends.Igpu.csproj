@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="$(MSBuildThisFileDirectory)..\..\build\Novolis.Rendering.Packaging.props" />
+  <PropertyGroup>
+    <RootNamespace>Novolis.Rendering.Backends.Igpu</RootNamespace>
+    <AssemblyName>Novolis.Rendering.Backends.Igpu</AssemblyName>
+    <PackageId>Novolis.Rendering.Backends.Igpu</PackageId>
+    <IsPackable>true</IsPackable>
+    <Description>ILGPU ray tracing backend (GPU compute with CPU fallback).</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="ILGPU" />
+    <PackageReference Include="ILGPU.Algorithms" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Novolis.Rendering.Backends.Cpu\Novolis.Rendering.Backends.Cpu.csproj" />
+    <ProjectReference Include="..\Novolis.Rendering.Runtime\Novolis.Rendering.Runtime.csproj" />
+  </ItemGroup>
+</Project>

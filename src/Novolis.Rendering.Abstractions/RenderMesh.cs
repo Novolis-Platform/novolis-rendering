@@ -4,6 +4,7 @@ using Novolis.Math.Geometry;
 namespace Novolis.Rendering.Abstractions;
 
 /// <summary>Indexed triangle soup for ray intersection (host-neutral scene geometry).</summary>
+[Obsolete("Use Novolis.Rendering.Scene.MeshInstance and SceneCompiler.")]
 public sealed class RenderMesh
 {
     public RenderMesh(Vector3[] vertices, int[] triangleIndices, Rgba32 color)

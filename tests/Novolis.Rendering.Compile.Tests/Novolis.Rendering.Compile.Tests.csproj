@@ -1,11 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <RootNamespace>Novolis.Rendering.Raytrace.Tests</RootNamespace>
+    <RootNamespace>Novolis.Rendering.Compile.Tests</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="TUnit" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Novolis.Rendering.Raytrace\Novolis.Rendering.Raytrace.csproj" />
+    <ProjectReference Include="..\..\src\Novolis.Rendering.Compile\Novolis.Rendering.Compile.csproj" />
   </ItemGroup>
 </Project>

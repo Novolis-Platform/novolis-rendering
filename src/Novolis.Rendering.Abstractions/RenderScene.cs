@@ -1,6 +1,7 @@
 namespace Novolis.Rendering.Abstractions;
 
 /// <summary>Minimal scene graph: meshes only (lights and materials expand later).</summary>
+[Obsolete("Use Novolis.Rendering.Scene.Scene.")]
 public sealed class RenderScene
 {
     public RenderScene(params RenderMesh[] meshes)

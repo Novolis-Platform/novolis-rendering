@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="$(MSBuildThisFileDirectory)..\..\build\Novolis.Rendering.Packaging.props" />
+  <PropertyGroup>
+    <RootNamespace>Novolis.Rendering.Backends.Cpu</RootNamespace>
+    <AssemblyName>Novolis.Rendering.Backends.Cpu</AssemblyName>
+    <PackageId>Novolis.Rendering.Backends.Cpu</PackageId>
+    <IsPackable>true</IsPackable>
+    <Description>CPU path tracing backend with progressive accumulation.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Novolis.Math.Geometry" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Novolis.Rendering.Abstractions\Novolis.Rendering.Abstractions.csproj" />
+    <ProjectReference Include="..\Novolis.Rendering.Compile\Novolis.Rendering.Compile.csproj" />
+    <ProjectReference Include="..\Novolis.Rendering.Presentation.Abstractions\Novolis.Rendering.Presentation.Abstractions.csproj" />
+    <ProjectReference Include="..\Novolis.Rendering.Runtime\Novolis.Rendering.Runtime.csproj" />
+    <ProjectReference Include="..\Novolis.Rendering.Scene\Novolis.Rendering.Scene.csproj" />
+  </ItemGroup>
+</Project>

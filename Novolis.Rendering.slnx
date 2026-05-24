@@ -1,11 +1,24 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/Novolis.Rendering.Abstractions/Novolis.Rendering.Abstractions.csproj" />
-    <Project Path="src/Novolis.Rendering.Raytrace/Novolis.Rendering.Raytrace.csproj" />
+    <Project Path="src/Novolis.Rendering.Presentation.Abstractions/Novolis.Rendering.Presentation.Abstractions.csproj" />
+    <Project Path="src/Novolis.Rendering.Runtime/Novolis.Rendering.Runtime.csproj" />
+    <Project Path="src/Novolis.Rendering.Materials/Novolis.Rendering.Materials.csproj" />
+    <Project Path="src/Novolis.Rendering.Scene/Novolis.Rendering.Scene.csproj" />
+    <Project Path="src/Novolis.Rendering.Compile/Novolis.Rendering.Compile.csproj" />
+    <Project Path="src/Novolis.Rendering.Backends.Cpu/Novolis.Rendering.Backends.Cpu.csproj" />
+    <Project Path="src/Novolis.Rendering.Backends.Igpu/Novolis.Rendering.Backends.Igpu.csproj" />
+    <Project Path="src/Novolis.Rendering.Backends.Vulkan/Novolis.Rendering.Backends.Vulkan.csproj" />
+    <Project Path="src/Novolis.Rendering.DependencyInjection/Novolis.Rendering.DependencyInjection.csproj" />
+    <Project Path="src/Novolis.Rendering.Presentation.Silk/Novolis.Rendering.Presentation.Silk.csproj" />
+    <Project Path="src/Novolis.Rendering.Testing/Novolis.Rendering.Testing.csproj" />
     <Project Path="src/Novolis.Rendering/Novolis.Rendering.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Novolis.Rendering.Abstractions.Tests/Novolis.Rendering.Abstractions.Tests.csproj" />
-    <Project Path="tests/Novolis.Rendering.Raytrace.Tests/Novolis.Rendering.Raytrace.Tests.csproj" />
+    <Project Path="tests/Novolis.Rendering.Materials.Tests/Novolis.Rendering.Materials.Tests.csproj" />
+    <Project Path="tests/Novolis.Rendering.Compile.Tests/Novolis.Rendering.Compile.Tests.csproj" />
+    <Project Path="tests/Novolis.Rendering.Backends.Cpu.Tests/Novolis.Rendering.Backends.Cpu.Tests.csproj" />
+    <Project Path="tests/Novolis.Rendering.DependencyInjection.Tests/Novolis.Rendering.DependencyInjection.Tests.csproj" />
   </Folder>
 </Solution>

@@ -1,15 +1,15 @@
 using System.Numerics;
-using Novolis.Rendering.Abstractions;
+using Novolis.Rendering.Runtime;
 using TUnit.Core;
 
 namespace Novolis.Rendering.Abstractions.Tests;
 
-public sealed class RenderCameraTests
+public sealed class CameraSnapshotTests
 {
     [Test]
     public async Task LookAt_ForwardPointsAtTarget()
     {
-        var camera = RenderCamera.LookAt(
+        var camera = CameraSnapshot.LookAt(
             new Vector3(0f, 2f, 5f),
             Vector3.Zero,
             Vector3.UnitY,

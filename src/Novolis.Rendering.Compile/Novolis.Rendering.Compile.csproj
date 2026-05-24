@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="$(MSBuildThisFileDirectory)..\..\build\Novolis.Rendering.Packaging.props" />
+  <PropertyGroup>
+    <RootNamespace>Novolis.Rendering.Compile</RootNamespace>
+    <AssemblyName>Novolis.Rendering.Compile</AssemblyName>
+    <PackageId>Novolis.Rendering.Compile</PackageId>
+    <IsPackable>true</IsPackable>
+    <Description>Scene compilation into flat runtime structures and BVH.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Novolis.Math.Geometry" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Novolis.Rendering.Scene\Novolis.Rendering.Scene.csproj" />
+    <ProjectReference Include="..\Novolis.Rendering.Runtime\Novolis.Rendering.Runtime.csproj" />
+  </ItemGroup>
+</Project>

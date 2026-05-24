@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="$(MSBuildThisFileDirectory)..\..\build\Novolis.Rendering.Packaging.props" />
+  <PropertyGroup>
+    <RootNamespace>Novolis.Rendering.Scene</RootNamespace>
+    <AssemblyName>Novolis.Rendering.Scene</AssemblyName>
+    <PackageId>Novolis.Rendering.Scene</PackageId>
+    <IsPackable>true</IsPackable>
+    <Description>Authoring scene graph for ray tracing.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Novolis.Math.Geometry" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Novolis.Rendering.Materials\Novolis.Rendering.Materials.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="$(MSBuildThisFileDirectory)..\..\build\Novolis.Rendering.Packaging.props" />
+  <PropertyGroup>
+    <RootNamespace>Novolis.Rendering.Testing</RootNamespace>
+    <AssemblyName>Novolis.Rendering.Testing</AssemblyName>
+    <PackageId>Novolis.Rendering.Testing</PackageId>
+    <IsPackable>true</IsPackable>
+    <Description>Golden test helpers for headless CPU frame output.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Novolis.Rendering.Presentation.Abstractions\Novolis.Rendering.Presentation.Abstractions.csproj" />
+  </ItemGroup>
+</Project>

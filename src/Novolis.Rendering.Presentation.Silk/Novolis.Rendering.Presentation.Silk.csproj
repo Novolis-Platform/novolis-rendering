@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="$(MSBuildThisFileDirectory)..\..\build\Novolis.Rendering.Packaging.props" />
+  <PropertyGroup>
+    <RootNamespace>Novolis.Rendering.Presentation.Silk</RootNamespace>
+    <AssemblyName>Novolis.Rendering.Presentation.Silk</AssemblyName>
+    <PackageId>Novolis.Rendering.Presentation.Silk</PackageId>
+    <IsPackable>true</IsPackable>
+    <Description>Silk.NET CPU frame presenter stub (swap for full Silk host later).</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Novolis.Rendering.Presentation.Abstractions\Novolis.Rendering.Presentation.Abstractions.csproj" />
+  </ItemGroup>
+</Project>

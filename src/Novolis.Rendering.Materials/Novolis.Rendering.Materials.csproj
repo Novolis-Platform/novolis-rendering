@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="$(MSBuildThisFileDirectory)..\..\build\Novolis.Rendering.Packaging.props" />
+  <PropertyGroup>
+    <RootNamespace>Novolis.Rendering.Materials</RootNamespace>
+    <AssemblyName>Novolis.Rendering.Materials</AssemblyName>
+    <PackageId>Novolis.Rendering.Materials</PackageId>
+    <IsPackable>true</IsPackable>
+    <Description>Authoring materials and compile-to-GpuMaterial helpers.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Novolis.Rendering.Runtime\Novolis.Rendering.Runtime.csproj" />
+  </ItemGroup>
+</Project>

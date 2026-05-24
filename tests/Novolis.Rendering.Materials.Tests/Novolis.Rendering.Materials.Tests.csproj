@@ -1,11 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <RootNamespace>Novolis.Rendering.Abstractions.Tests</RootNamespace>
+    <RootNamespace>Novolis.Rendering.Materials.Tests</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="TUnit" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Novolis.Rendering.Runtime\Novolis.Rendering.Runtime.csproj" />
+    <ProjectReference Include="..\..\src\Novolis.Rendering.Materials\Novolis.Rendering.Materials.csproj" />
   </ItemGroup>
 </Project>

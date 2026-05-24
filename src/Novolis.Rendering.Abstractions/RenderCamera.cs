@@ -3,6 +3,7 @@ using System.Numerics;
 namespace Novolis.Rendering.Abstractions;
 
 /// <summary>Observer used to cast primary rays; independent of any GPU camera type.</summary>
+[Obsolete("Use Novolis.Rendering.Runtime.CameraSnapshot.")]
 public readonly struct RenderCamera
 {
     public RenderCamera(
