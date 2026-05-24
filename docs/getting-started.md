@@ -17,28 +17,28 @@ Set `NOVOLIS_LOCAL_FEED` or use the default `..\artifacts\nuget-local` next to t
 ```powershell
 cd d:\novolis\novolis-rendering
 dotnet build Novolis.Rendering.slnx
-dotnet run --project tests/Novolis.Rendering.Abstractions.Tests
-dotnet run --project tests/Novolis.Rendering.Raytrace.Tests
+dotnet run --project tests/Novolis.Rendering.Unit
 ```
 
 ## Minimal render
 
 ```csharp
-using Novolis.Rendering.Abstractions;
-using Novolis.Rendering.Raytrace;
+using Novolis.Rendering.Backends.Cpu;
+using Novolis.Rendering.Runtime;
 
-var buffer = new ImageBuffer(320, 240);
-var camera = RenderCamera.LookAt(
-    position: new(2f, 1f, 3f),
+var backend = new CpuRayTracingBackend(deterministic: true);
+await backend.ResizeAsync(320, 240);
+await backend.UploadSceneAsync(DemoSceneFactory.UnitCubeRoom());
+
+var camera = CameraSnapshot.LookAt(
+    eye: new(2f, 1f, 3f),
     target: Vector3.Zero,
     up: Vector3.UnitY,
     verticalFovDegrees: 60f,
     aspectRatio: 320f / 240f);
 
-IRayTracer tracer = new CpuRayTracer();
-tracer.Render(buffer, camera, RenderSceneFactory.UnitCubeRoom());
-
-// buffer.Pixels → hand off to your presenter (Raylib, Silk.NET, file export, …)
+await backend.RenderAsync(camera, 0);
+// backend.Output → hand off to your presenter (Raylib, Silk.NET, file export, …)
 ```
 
 ## Pack locally
