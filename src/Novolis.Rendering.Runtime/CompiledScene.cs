@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using Novolis.Math.Geometry;
 
 namespace Novolis.Rendering.Runtime;
 
@@ -15,7 +16,7 @@ public sealed record CompiledScene
     public required ImmutableArray<GpuLight> Lights { get; init; }
 
     /// <summary>Binary BVH nodes for acceleration.</summary>
-    public required ImmutableArray<BvhNode> BvhNodes { get; init; }
+    public required ImmutableArray<TriangleBvhNode> BvhNodes { get; init; }
 
     /// <summary>Triangle permutation order used during BVH traversal.</summary>
     public required ImmutableArray<int> TriangleOrder { get; init; }
@@ -29,7 +30,7 @@ public sealed record CompiledScene
         Triangles = ImmutableArray<GpuTriangle>.Empty,
         Materials = ImmutableArray<GpuMaterial>.Empty,
         Lights = ImmutableArray<GpuLight>.Empty,
-        BvhNodes = ImmutableArray<BvhNode>.Empty,
+        BvhNodes = ImmutableArray<TriangleBvhNode>.Empty,
         TriangleOrder = ImmutableArray<int>.Empty,
     };
 }

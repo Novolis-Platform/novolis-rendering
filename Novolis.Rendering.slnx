@@ -10,6 +10,7 @@
     <Project Path="src/Novolis.Rendering.Backends.Igpu/Novolis.Rendering.Backends.Igpu.csproj" />
     <Project Path="src/Novolis.Rendering.Backends.Vulkan/Novolis.Rendering.Backends.Vulkan.csproj" />
     <Project Path="src/Novolis.Rendering.DependencyInjection/Novolis.Rendering.DependencyInjection.csproj" />
+    <Project Path="src/Novolis.Rendering.PathTrace.Demos/Novolis.Rendering.PathTrace.Demos.csproj" />
     <Project Path="src/Novolis.Rendering.Presentation.Silk/Novolis.Rendering.Presentation.Silk.csproj" />
     <Project Path="src/Novolis.Rendering.Presentation.Raylib/Novolis.Rendering.Presentation.Raylib.csproj" />
     <Project Path="src/Novolis.Rendering.Testing/Novolis.Rendering.Testing.csproj" />

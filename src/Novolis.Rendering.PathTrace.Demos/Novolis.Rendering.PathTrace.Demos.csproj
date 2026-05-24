@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="$(MSBuildThisFileDirectory)..\..\build\Novolis.Rendering.Packaging.props" />
+  <PropertyGroup>
+    <RootNamespace>Novolis.Rendering.PathTrace.Demos</RootNamespace>
+    <AssemblyName>Novolis.Rendering.PathTrace.Demos</AssemblyName>
+    <PackageId>Novolis.Rendering.PathTrace.Demos</PackageId>
+    <IsPackable>true</IsPackable>
+    <Description>Shared path-tracing demo scenes, async workers, and session helpers for Silk and Raylib samples.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Novolis.Rendering.Backends.Cpu\Novolis.Rendering.Backends.Cpu.csproj" />
+    <ProjectReference Include="..\Novolis.Rendering.Backends.Igpu\Novolis.Rendering.Backends.Igpu.csproj" />
+    <ProjectReference Include="..\Novolis.Rendering.Backends.Vulkan\Novolis.Rendering.Backends.Vulkan.csproj" />
+    <ProjectReference Include="..\Novolis.Rendering.Compile\Novolis.Rendering.Compile.csproj" />
+    <ProjectReference Include="..\Novolis.Rendering.Materials\Novolis.Rendering.Materials.csproj" />
+    <ProjectReference Include="..\Novolis.Rendering.Presentation.Abstractions\Novolis.Rendering.Presentation.Abstractions.csproj" />
+    <ProjectReference Include="..\Novolis.Rendering.Runtime\Novolis.Rendering.Runtime.csproj" />
+    <ProjectReference Include="..\Novolis.Rendering.Scene\Novolis.Rendering.Scene.csproj" />
+  </ItemGroup>
+</Project>

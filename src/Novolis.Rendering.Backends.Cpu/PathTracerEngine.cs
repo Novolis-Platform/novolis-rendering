@@ -52,7 +52,7 @@ internal static class PathTracerEngine
                     var u = (2f * (x + jitterX) / width - 1f) * tanHalfFov * aspect;
                     var v = (2f * (y + jitterY) / height - 1f) * tanHalfFov;
                     var dir = Vector3.Normalize(camera.Forward + u * camera.Right + v * camera.Up);
-                    var ray = new Ray3(camera.Position, dir);
+                    var ray = new Ray(camera.Position, dir);
                     var radiance = Trace(in ray, scene, 0, ref rng);
                     var idx = y * width + x;
                     var blended = accumulation[idx] + radiance;
@@ -63,7 +63,7 @@ internal static class PathTracerEngine
         });
     }
 
-    private static Vector3 Trace(in Ray3 ray, CompiledScene scene, int depth, ref Random rng)
+    private static Vector3 Trace(in Ray ray, CompiledScene scene, int depth, ref Random rng)
     {
         if (!IntersectScene(in ray, scene, out var hit))
         {
@@ -81,7 +81,7 @@ internal static class PathTracerEngine
     }
 
     private static Vector3 StandardShade(
-        in Ray3 ray,
+        in Ray ray,
         in Hit hit,
         CompiledScene scene,
         int depth,
@@ -123,7 +123,7 @@ internal static class PathTracerEngine
             if (mirrorWeight > 0.01f)
             {
                 var reflectDir = Vector3.Reflect(ray.Direction, n);
-                var reflectRay = new Ray3(hit.Point + n * Epsilon, Vector3.Normalize(reflectDir));
+                var reflectRay = new Ray(hit.Point + n * Epsilon, Vector3.Normalize(reflectDir));
                 radiance += baseColor * Trace(in reflectRay, scene, depth + 1, ref rng) * mirrorWeight;
             }
         }
@@ -131,7 +131,7 @@ internal static class PathTracerEngine
         if (depth < MaxDepth && roughness > 0.01f && rng.NextDouble() > metallic)
         {
             var bounceDir = CosineHemisphere(n, ref rng);
-            var bounce = new Ray3(hit.Point + n * Epsilon, bounceDir);
+            var bounce = new Ray(hit.Point + n * Epsilon, bounceDir);
             radiance += baseColor * Trace(in bounce, scene, depth + 1, ref rng) * 0.5f;
         }
 
@@ -139,7 +139,7 @@ internal static class PathTracerEngine
     }
 
     private static Vector3 GlassShade(
-        in Ray3 ray,
+        in Ray ray,
         in Hit hit,
         CompiledScene scene,
         int depth,
@@ -174,12 +174,12 @@ internal static class PathTracerEngine
             refractDir = Vector3.Normalize(eta * ray.Direction + (eta * cosTheta - MathF.Sqrt(k)) * n);
         }
 
-        var refractRay = new Ray3(hit.Point + refractDir * Epsilon, refractDir);
+        var refractRay = new Ray(hit.Point + refractDir * Epsilon, refractDir);
         return tint * Trace(in refractRay, scene, depth + 1, ref rng);
     }
 
     private static Vector3 SkinShade(
-        in Ray3 ray,
+        in Ray ray,
         in Hit hit,
         CompiledScene scene,
         int depth,
@@ -235,11 +235,11 @@ internal static class PathTracerEngine
 
     private static bool ShadowRayClear(Vector3 origin, Vector3 dir, CompiledScene scene, float maxDist)
     {
-        var ray = new Ray3(origin + dir * Epsilon, dir);
+        var ray = new Ray(origin + dir * Epsilon, dir);
         return !IntersectScene(in ray, scene, out _, maxDist);
     }
 
-    private static bool IntersectScene(in Ray3 ray, CompiledScene scene, out Hit hit, float maxDistance = float.MaxValue)
+    private static bool IntersectScene(in Ray ray, CompiledScene scene, out Hit hit, float maxDistance = float.MaxValue)
     {
         hit = default;
         if (scene.BvhRootIndex < 0 || scene.BvhNodes.Length == 0)
@@ -247,59 +247,38 @@ internal static class PathTracerEngine
             return IntersectBruteForce(in ray, scene, out hit, maxDistance);
         }
 
-        var bestT = maxDistance;
-        var found = false;
-        TraverseBvh(scene.BvhRootIndex, in ray, scene, maxDistance, ref bestT, ref found, ref hit);
-        return found;
+        bool HitTriangle(int triIdx, in Ray r, float maxT, out float t, out Vector3 n) =>
+            TryHitGpuTriangle(scene, triIdx, in r, maxT, out t, out n);
+
+        if (!BvhRaycast.Traverse(
+                scene.BvhNodes.AsSpan(),
+                scene.TriangleOrder.AsSpan(),
+                scene.BvhRootIndex,
+                in ray,
+                maxDistance,
+                HitTriangle,
+                out var distance,
+                out var normal,
+                out var triangleIndex))
+        {
+            return false;
+        }
+
+        var materialIndex = scene.Triangles[triangleIndex].MaterialIndex;
+        hit = new Hit(materialIndex, ray.PointAt(distance), normal);
+        return true;
     }
 
-    private static void TraverseBvh(
-        int nodeIndex,
-        in Ray3 ray,
-        CompiledScene scene,
-        float maxDistance,
-        ref float bestT,
-        ref bool found,
-        ref Hit hit)
+    private static bool TryHitGpuTriangle(CompiledScene scene, int triIdx, in Ray ray, float maxT, out float t, out Vector3 normal)
     {
-        var node = scene.BvhNodes[nodeIndex];
-        if (!RaySlabIntersect(node.Bounds, ray.Origin, ray.Direction, 0f, maxDistance, out var tEnter, out var tExit))
-        {
-            return;
-        }
-
-        if (tExit < 0f || tEnter > bestT)
-        {
-            return;
-        }
-
-        if (node.IsLeaf)
-        {
-            for (var i = 0; i < node.TriangleCount; i++)
-            {
-                var triIdx = scene.TriangleOrder[node.TriangleOrderOffset + i];
-                var tri = scene.Triangles[triIdx];
-                var v0 = new Vector3(tri.A.X, tri.A.Y, tri.A.Z);
-                var v1 = new Vector3(tri.B.X, tri.B.Y, tri.B.Z);
-                var v2 = new Vector3(tri.C.X, tri.C.Y, tri.C.Z);
-                if (!TriangleRay.TryHit(in ray, v0, v1, v2, bestT, out var t, out var n))
-                {
-                    continue;
-                }
-
-                found = true;
-                bestT = t;
-                hit = new Hit(tri.MaterialIndex, ray.PointAt(t), n);
-            }
-
-            return;
-        }
-
-        TraverseBvh(node.LeftChild, in ray, scene, maxDistance, ref bestT, ref found, ref hit);
-        TraverseBvh(node.RightChild, in ray, scene, maxDistance, ref bestT, ref found, ref hit);
+        var tri = scene.Triangles[triIdx];
+        var v0 = new Vector3(tri.A.X, tri.A.Y, tri.A.Z);
+        var v1 = new Vector3(tri.B.X, tri.B.Y, tri.B.Z);
+        var v2 = new Vector3(tri.C.X, tri.C.Y, tri.C.Z);
+        return TriangleRay.TryHit(in ray, v0, v1, v2, maxT, out t, out normal);
     }
 
-    private static bool IntersectBruteForce(in Ray3 ray, CompiledScene scene, out Hit hit, float maxDistance)
+    private static bool IntersectBruteForce(in Ray ray, CompiledScene scene, out Hit hit, float maxDistance)
     {
         hit = default;
         var bestT = maxDistance;
@@ -321,52 +300,6 @@ internal static class PathTracerEngine
         }
 
         return found;
-    }
-
-    private static bool RaySlabIntersect(
-        AxisAlignedBox3 box,
-        Vector3 origin,
-        Vector3 dir,
-        float minT,
-        float maxT,
-        out float tEnter,
-        out float tExit)
-    {
-        tEnter = minT;
-        tExit = maxT;
-        for (var axis = 0; axis < 3; axis++)
-        {
-            var o = axis == 0 ? origin.X : axis == 1 ? origin.Y : origin.Z;
-            var d = axis == 0 ? dir.X : axis == 1 ? dir.Y : dir.Z;
-            var min = axis == 0 ? box.Min.X : axis == 1 ? box.Min.Y : box.Min.Z;
-            var max = axis == 0 ? box.Max.X : axis == 1 ? box.Max.Y : box.Max.Z;
-            if (MathF.Abs(d) < 1e-15f)
-            {
-                if (o < min || o > max)
-                {
-                    return false;
-                }
-
-                continue;
-            }
-
-            var invD = 1f / d;
-            var t0 = (min - o) * invD;
-            var t1 = (max - o) * invD;
-            if (t0 > t1)
-            {
-                (t0, t1) = (t1, t0);
-            }
-
-            tEnter = MathF.Max(tEnter, t0);
-            tExit = MathF.Min(tExit, t1);
-            if (tEnter > tExit)
-            {
-                return false;
-            }
-        }
-
-        return true;
     }
 
     private static Vector3 SampleSky(Vector3 direction)

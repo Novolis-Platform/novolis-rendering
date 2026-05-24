@@ -48,6 +48,29 @@ public static class RenderingServiceCollectionExtensions
         services.AddSingleton<IRayTracingBackend>(sp => sp.GetRequiredService<VulkanRayTracingBackend>());
         return services;
     }
+
+    /// <summary>
+    /// Adds ray tracing and selects a backend from <c>NOVOLIS_RAY_BACKEND</c>
+    /// (<c>cpu</c>, <c>vulkan</c>, default ILGPU).
+    /// </summary>
+    /// <param name="services">Service collection.</param>
+    /// <returns>The same <paramref name="services"/> for chaining.</returns>
+    public static IServiceCollection AddRayTracingFromEnvironment(this IServiceCollection services)
+    {
+        services.AddRayTracing();
+        var backend = Environment.GetEnvironmentVariable("NOVOLIS_RAY_BACKEND");
+        if (string.Equals(backend, "cpu", StringComparison.OrdinalIgnoreCase))
+        {
+            return services.UseCpuBackend();
+        }
+
+        if (string.Equals(backend, "vulkan", StringComparison.OrdinalIgnoreCase))
+        {
+            return services.UseVulkanBackend();
+        }
+
+        return services.UseIlgpuBackend();
+    }
 }
 
 /// <summary>DI-friendly wrapper around static <see cref="SceneCompiler"/>.</summary>

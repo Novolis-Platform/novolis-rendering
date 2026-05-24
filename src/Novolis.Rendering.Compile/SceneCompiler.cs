@@ -85,20 +85,12 @@ public static class SceneCompiler
         }
 
         var bvh = TriangleBvhBuilder.Build(expandedVerts, flatIndices);
-        var bvhNodes = bvh.Nodes.Select(n => new BvhNode(
-            n.Bounds,
-            n.TriangleOrderOffset,
-            n.TriangleCount,
-            n.LeftChild,
-            n.RightChild,
-            n.IsLeaf)).ToImmutableArray();
-
         return new CompiledScene
         {
             Triangles = triangles.ToImmutableArray(),
             Materials = materials.ToImmutableArray(),
             Lights = lights,
-            BvhNodes = bvhNodes,
+            BvhNodes = bvh.Nodes.ToImmutableArray(),
             TriangleOrder = bvh.TriangleOrder.ToImmutableArray(),
             BvhRootIndex = bvh.RootIndex,
         };

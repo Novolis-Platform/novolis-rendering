@@ -1,6 +1,6 @@
 using System.Numerics;
 using System.Runtime.InteropServices;
-using Novolis.Rendering.Runtime;
+using Novolis.Math.Geometry;
 
 namespace Novolis.Rendering.Backends.Vulkan;
 
@@ -18,7 +18,7 @@ internal struct VulkanGpuBvhNode
     public int RightChild;
     public int IsLeaf;
 
-    public static VulkanGpuBvhNode From(BvhNode node) =>
+    public static VulkanGpuBvhNode From(TriangleBvhNode node) =>
         new()
         {
             BoundsMin = node.Bounds.Min,

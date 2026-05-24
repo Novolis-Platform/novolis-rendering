@@ -18,15 +18,19 @@ using Novolis.Rendering.Presentation.Silk;
 SilkGame.Run("Novolis path trace", 1280, 720, ctx =>
 {
     ctx.FramePresenter.PresentCpuFrame(pixels, ctx.Width, ctx.Height);
+    ctx.FramePresenter.ShowStatusStrip = true; // optional HUD bar
     ctx.SetTitle($"Samples: {sampleCount}");
 });
 ```
+
+Mouse orbit, smoothed FPS, and backend hotkeys are used by the **SilkTraceStudio** dogfood app (`Novolis.Rendering.PathTrace.Demos` + `SilkOrbitCamera`).
 
 ## Related packages
 
 | Package | When to use |
 |---------|-------------|
 | `Novolis.Rendering.Presentation.Abstractions` | `IFramePresenter` contract |
+| `Novolis.Rendering.PathTrace.Demos` | Shared scenes, workers, session for Silk/Raylib samples |
 | `Novolis.Rendering.Presentation.Raylib` | Raylib-based presenter instead |
 
 ## More documentation

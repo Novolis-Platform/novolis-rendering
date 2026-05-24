@@ -47,6 +47,9 @@ public sealed class SilkOpenGlFramePresenter : IFramePresenter, IDisposable
     private bool _initialized;
     private bool _disposed;
 
+    /// <summary>When true, draws a semi-transparent strip at the top before the frame quad (HUD area).</summary>
+    public bool ShowStatusStrip { get; set; }
+
     /// <summary>Creates a presenter for the given Silk window.</summary>
     /// <param name="window">Target window (OpenGL context).</param>
     public SilkOpenGlFramePresenter(IWindow window) => _window = window;
@@ -210,8 +213,14 @@ public sealed class SilkOpenGlFramePresenter : IFramePresenter, IDisposable
             return;
         }
 
-        _gl.Viewport(0, 0, (uint)_window.FramebufferSize.X, (uint)_window.FramebufferSize.Y);
+        var viewportHeight = _window.FramebufferSize.Y;
+        _gl.Viewport(0, 0, (uint)_window.FramebufferSize.X, (uint)viewportHeight);
         _gl.Clear(ClearBufferMask.ColorBufferBit);
+        if (ShowStatusStrip)
+        {
+            SilkOpenGlStatusStrip.Draw(_gl, viewportHeight);
+        }
+
         _gl.UseProgram(_program);
         _gl.ActiveTexture(TextureUnit.Texture0);
         _gl.BindTexture(TextureTarget.Texture2D, _texture);

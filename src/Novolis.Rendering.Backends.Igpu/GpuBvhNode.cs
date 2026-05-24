@@ -1,4 +1,4 @@
-using Novolis.Rendering.Runtime;
+using Novolis.Math.Geometry;
 
 namespace Novolis.Rendering.Backends.Igpu;
 
@@ -26,10 +26,10 @@ public struct GpuBvhNode
     /// <summary>1 when leaf, 0 when internal.</summary>
     public int IsLeaf;
 
-    /// <summary>Converts a runtime <see cref="BvhNode"/> into an ILGPU layout.</summary>
+    /// <summary>Converts a <see cref="TriangleBvhNode"/> into an ILGPU layout.</summary>
     /// <param name="node">Runtime BVH node.</param>
     /// <returns>Blittable GPU node.</returns>
-    public static GpuBvhNode From(BvhNode node) =>
+    public static GpuBvhNode From(TriangleBvhNode node) =>
         new()
         {
             BoundsMin = Float3.From(node.Bounds.Min),
