@@ -25,7 +25,7 @@ internal static class IlgpuPathTracerKernels
         ArrayView<GpuMaterial> materials,
         ArrayView<GpuLight> lights,
         int lightCount,
-        ArrayView<BvhNode> bvhNodes,
+        ArrayView<GpuBvhNode> bvhNodes,
         int bvhRootIndex,
         ArrayView<int> triangleOrder)
     {
@@ -53,7 +53,7 @@ internal static class IlgpuPathTracerKernels
         ArrayView<GpuMaterial> materials,
         ArrayView<GpuLight> lights,
         int lightCount,
-        ArrayView<BvhNode> bvhNodes,
+        ArrayView<GpuBvhNode> bvhNodes,
         int bvhRootIndex,
         ArrayView<int> triangleOrder)
     {
@@ -82,7 +82,7 @@ internal static class IlgpuPathTracerKernels
         ArrayView<GpuMaterial> materials,
         ArrayView<GpuLight> lights,
         int lightCount,
-        ArrayView<BvhNode> bvhNodes,
+        ArrayView<GpuBvhNode> bvhNodes,
         int bvhRootIndex,
         ArrayView<int> triangleOrder)
     {
@@ -165,7 +165,7 @@ internal static class IlgpuPathTracerKernels
         Vector3 origin,
         Vector3 direction,
         ArrayView<GpuTriangle> triangles,
-        ArrayView<BvhNode> bvhNodes,
+        ArrayView<GpuBvhNode> bvhNodes,
         int bvhRootIndex,
         ArrayView<int> triangleOrder,
         out Hit hit)
@@ -187,7 +187,7 @@ internal static class IlgpuPathTracerKernels
         Vector3 origin,
         Vector3 direction,
         ArrayView<GpuTriangle> triangles,
-        ArrayView<BvhNode> bvhNodes,
+        ArrayView<GpuBvhNode> bvhNodes,
         ArrayView<int> triangleOrder,
         float maxDistance,
         ref float bestT,
@@ -195,12 +195,12 @@ internal static class IlgpuPathTracerKernels
         ref Hit hit)
     {
         var node = bvhNodes[nodeIndex];
-        if (!RaySlabIntersect(node.Bounds.Min, node.Bounds.Max, origin, direction, 0f, maxDistance))
+        if (!RaySlabIntersect(node.BoundsMin, node.BoundsMax, origin, direction, 0f, maxDistance))
         {
             return;
         }
 
-        if (node.IsLeaf)
+        if (node.IsLeaf != 0)
         {
             for (var i = 0; i < node.TriangleCount; i++)
             {
@@ -253,7 +253,7 @@ internal static class IlgpuPathTracerKernels
         Vector3 direction,
         float maxDist,
         ArrayView<GpuTriangle> triangles,
-        ArrayView<BvhNode> bvhNodes,
+        ArrayView<GpuBvhNode> bvhNodes,
         int bvhRootIndex,
         ArrayView<int> triangleOrder)
     {

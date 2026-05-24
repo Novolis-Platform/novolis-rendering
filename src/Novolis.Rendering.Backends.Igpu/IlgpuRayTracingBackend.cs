@@ -26,7 +26,7 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
     private MemoryBuffer1D<GpuTriangle, Stride1D.Dense>? _trianglesGpu;
     private MemoryBuffer1D<GpuMaterial, Stride1D.Dense>? _materialsGpu;
     private MemoryBuffer1D<GpuLight, Stride1D.Dense>? _lightsGpu;
-    private MemoryBuffer1D<BvhNode, Stride1D.Dense>? _bvhGpu;
+    private MemoryBuffer1D<GpuBvhNode, Stride1D.Dense>? _bvhGpu;
     private MemoryBuffer1D<int, Stride1D.Dense>? _triangleOrderGpu;
     private CompiledScene _scene = CompiledScene.Empty;
     private int _sampleCount;
@@ -35,7 +35,7 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
     private int _bvhRootIndex = -1;
     private bool _useGpu;
     private Action<Index1D, int, int, int, IlgpuCameraParams, ArrayView<Vector3>, ArrayView<byte>,
-        ArrayView<GpuTriangle>, ArrayView<GpuMaterial>, ArrayView<GpuLight>, int, ArrayView<BvhNode>, int,
+        ArrayView<GpuTriangle>, ArrayView<GpuMaterial>, ArrayView<GpuLight>, int, ArrayView<GpuBvhNode>, int,
         ArrayView<int>>? _traceKernel;
 
     public IlgpuRayTracingBackend(bool deterministic = false)
@@ -193,7 +193,7 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
 
         _traceKernel ??= accelerator.LoadAutoGroupedStreamKernel<Index1D, int, int, int, IlgpuCameraParams,
             ArrayView<Vector3>, ArrayView<byte>, ArrayView<GpuTriangle>, ArrayView<GpuMaterial>, ArrayView<GpuLight>,
-            int, ArrayView<BvhNode>, int, ArrayView<int>>(IlgpuPathTracerKernels.TracePixelKernel);
+            int, ArrayView<GpuBvhNode>, int, ArrayView<int>>(IlgpuPathTracerKernels.TracePixelKernel);
 
         _traceKernel(
             pixelCount,
@@ -238,8 +238,8 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
             ? accelerator.Allocate1D<GpuLight>(1)
             : accelerator.Allocate1D(scene.Lights.ToArray());
         _bvhGpu = scene.BvhNodes.IsEmpty
-            ? accelerator.Allocate1D<BvhNode>(1)
-            : accelerator.Allocate1D(scene.BvhNodes.ToArray());
+            ? accelerator.Allocate1D<GpuBvhNode>(1)
+            : accelerator.Allocate1D(scene.BvhNodes.Select(GpuBvhNode.From).ToArray());
         _triangleOrderGpu = scene.TriangleOrder.IsEmpty
             ? accelerator.Allocate1D<int>(1)
             : accelerator.Allocate1D(scene.TriangleOrder.ToArray());

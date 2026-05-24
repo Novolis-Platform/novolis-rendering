@@ -8,6 +8,7 @@ namespace Novolis.Rendering.Backends.Cpu.Tests;
 
 public sealed class BackendParityTests
 {
+    /// <summary>Uses CPU fallback; does not exercise ILGPU buffer upload. See <c>IlgpuSceneBufferTests</c>.</summary>
     [Test]
     public async Task Ilgpu_MatchesCpu_OnDeterministicFrame()
     {
