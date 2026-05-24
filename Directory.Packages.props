@@ -1,5 +1,4 @@
 <Project>
-    <Import Project="build\version.props" Condition="Exists('build\version.props')" />
 <ItemGroup>
     <PackageVersion Include="ILGPU" Version="1.5.3" />
     <PackageVersion Include="ILGPU.Algorithms" Version="1.5.3" />
