@@ -14,6 +14,10 @@ public sealed class SilkTwoDGameContext
     private SilkTwoDRenderer? _renderer;
     private readonly HashSet<Key> _keysDownLastFrame = new();
     private readonly HashSet<Key> _keysPolledThisFrame = new();
+    private readonly HashSet<MouseButton> _mouseDownLastFrame = new();
+    private readonly HashSet<MouseButton> _mousePolledThisFrame = new();
+    private Vector2D<float> _mousePosition;
+    private Vector2D<float> _mouseDelta;
     private int _width;
     private int _height;
     private float _dt;
@@ -34,6 +38,12 @@ public sealed class SilkTwoDGameContext
     /// <summary>Elapsed time since the last frame in seconds.</summary>
     public float DeltaSeconds => _dt;
 
+    /// <summary>Cursor position in framebuffer pixels (origin top-left).</summary>
+    public Vector2D<float> MousePosition => _mousePosition;
+
+    /// <summary>Cursor delta since the previous frame in pixels.</summary>
+    public Vector2D<float> MouseDelta => _mouseDelta;
+
     internal void Bind(IWindow window, SilkTwoDRenderer renderer, IInputContext input)
     {
         _window = window;
@@ -47,7 +57,19 @@ public sealed class SilkTwoDGameContext
         _height = size.Y;
         _dt = deltaSeconds;
         _renderer?.Resize(_width, _height);
+        PollMouse();
     }
+
+    /// <summary>Whether <paramref name="button"/> is held.</summary>
+    public bool IsMouseButtonDown(MouseButton button)
+    {
+        _mousePolledThisFrame.Add(button);
+        return AnyMouse(m => m.IsButtonPressed(button));
+    }
+
+    /// <summary>True on the frame the button transitioned to down.</summary>
+    public bool IsMouseButtonPressed(MouseButton button) =>
+        IsMouseButtonDown(button) && !_mouseDownLastFrame.Contains(button);
 
     /// <summary>Updates the window title.</summary>
     public void SetTitle(string title)
@@ -103,6 +125,31 @@ public sealed class SilkTwoDGameContext
         }
 
         _keysPolledThisFrame.Clear();
+
+        _mouseDownLastFrame.Clear();
+        foreach (var mouse in _input?.Mice ?? [])
+        {
+            foreach (var button in _mousePolledThisFrame)
+            {
+                if (mouse.IsButtonPressed(button))
+                {
+                    _mouseDownLastFrame.Add(button);
+                }
+            }
+        }
+
+        _mousePolledThisFrame.Clear();
+    }
+
+    private void PollMouse()
+    {
+        _mouseDelta = default;
+        foreach (var mouse in _input?.Mice ?? [])
+        {
+            var pos = mouse.Position;
+            _mouseDelta += pos - _mousePosition;
+            _mousePosition = pos;
+        }
     }
 
     private bool AnyKeyboard(Func<IKeyboard, bool> predicate)
@@ -110,6 +157,19 @@ public sealed class SilkTwoDGameContext
         foreach (var keyboard in _input?.Keyboards ?? [])
         {
             if (predicate(keyboard))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool AnyMouse(Func<IMouse, bool> predicate)
+    {
+        foreach (var mouse in _input?.Mice ?? [])
+        {
+            if (predicate(mouse))
             {
                 return true;
             }
