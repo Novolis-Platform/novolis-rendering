@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Novolis.Rendering.Abstractions/Novolis.Rendering.Abstractions.csproj" />
+    <Project Path="src/Novolis.Rendering.Raytrace/Novolis.Rendering.Raytrace.csproj" />
+    <Project Path="src/Novolis.Rendering/Novolis.Rendering.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Novolis.Rendering.Abstractions.Tests/Novolis.Rendering.Abstractions.Tests.csproj" />
+    <Project Path="tests/Novolis.Rendering.Raytrace.Tests/Novolis.Rendering.Raytrace.Tests.csproj" />
+  </Folder>
+</Solution>

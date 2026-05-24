@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="$(MSBuildThisFileDirectory)..\..\build\Novolis.Rendering.Packaging.props" />
+  <PropertyGroup>
+    <RootNamespace>Novolis.Rendering</RootNamespace>
+    <AssemblyName>Novolis.Rendering</AssemblyName>
+    <PackageId>Novolis.Rendering</PackageId>
+    <IsPackable>true</IsPackable>
+    <Description>Rendering composition stack — abstractions and CPU ray tracing for Novolis apps.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Novolis.Rendering.Abstractions\Novolis.Rendering.Abstractions.csproj" />
+    <ProjectReference Include="..\Novolis.Rendering.Raytrace\Novolis.Rendering.Raytrace.csproj" />
+  </ItemGroup>
+</Project>

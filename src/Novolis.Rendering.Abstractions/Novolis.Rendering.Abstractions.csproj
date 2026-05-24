@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="$(MSBuildThisFileDirectory)..\..\build\Novolis.Rendering.Packaging.props" />
+  <PropertyGroup>
+    <RootNamespace>Novolis.Rendering.Abstractions</RootNamespace>
+    <AssemblyName>Novolis.Rendering.Abstractions</AssemblyName>
+    <PackageId>Novolis.Rendering.Abstractions</PackageId>
+    <IsPackable>true</IsPackable>
+    <Description>Graphics-host-neutral frame buffers, cameras, and ray tracing contracts.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Novolis.Math.Geometry" />
+  </ItemGroup>
+</Project>

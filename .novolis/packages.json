@@ -1,1 +1,13 @@
-{"packages":{}}
+{
+  "packages": {
+    "Novolis.Rendering": {
+      "description": "Rendering composition stack — abstractions and CPU ray tracing."
+    },
+    "Novolis.Rendering.Abstractions": {
+      "description": "Graphics-host-neutral frame buffers, cameras, and ray tracing contracts."
+    },
+    "Novolis.Rendering.Raytrace": {
+      "description": "CPU ray tracer that writes RGBA frames for presentation by host adapters."
+    }
+  }
+}

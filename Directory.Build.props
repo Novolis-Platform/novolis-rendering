@@ -1,14 +1,34 @@
 <Project>
+  
+  <Import Project="$(MSBuildThisFileDirectory).novolis\version.props"
+          Condition="Exists('$(MSBuildThisFileDirectory).novolis\version.props')" />
+
+  <PropertyGroup Label="SDK and packages">
+    <TargetFramework>net10.0</TargetFramework>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+  </PropertyGroup>
+
   <PropertyGroup Label="Local NuGet feed">
     <NovolisLocalFeed Condition="'$(NovolisLocalFeed)' == ''">$(NOVOLIS_LOCAL_FEED)</NovolisLocalFeed>
     <NovolisLocalFeed Condition="'$(NovolisLocalFeed)' == ''">$(MSBuildThisFileDirectory)..\artifacts\nuget-local</NovolisLocalFeed>
   </PropertyGroup>
-  <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <LangVersion>latest</LangVersion>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+
+  <PropertyGroup Label="NuGet compatibility">
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1504;NU1507;NU1510;NU1603;NU1605;NU1608;NU1901;NU1902;NU1903;NU1904;NU1701</WarningsNotAsErrors>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$(MSBuildProjectDirectory.Contains('\tests\')) Or $(MSBuildProjectDirectory.Contains('/tests/'))">
+    <IsTestProject Condition="'$(IsTestProject)' == ''">true</IsTestProject>
+    <TestingPlatformCommandLineArguments>--maximum-parallel-tests 1</TestingPlatformCommandLineArguments>
+  </PropertyGroup>
+
+  <PropertyGroup Label="NuGet / SourceLink">
     <Authors>Novolis</Authors>
     <Company>Novolis</Company>
     <Copyright>Copyright (c) Novolis-Platform</Copyright>
@@ -16,14 +36,19 @@
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <EnableSourceLink>true</EnableSourceLink>
+    <RepositoryType>git</RepositoryType>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true' Or '$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
   </PropertyGroup>
-  <ItemGroup>
+
+  <Import Project="$(MSBuildThisFileDirectory)..\novolis-governance\build\Novolis.StackAnalyzers.props" Condition="Exists('$(MSBuildThisFileDirectory)..\novolis-governance\build\Novolis.StackAnalyzers.props')" />
+  <ItemGroup Label="SourceLink">
     <PackageReference Include="Microsoft.SourceLink.GitHub">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
   </ItemGroup>
+  <Import Project="$(MSBuildThisFileDirectory)..\novolis-governance\build\Novolis.LocalPack.props"
+          Condition="Exists('$(MSBuildThisFileDirectory)..\novolis-governance\build\Novolis.LocalPack.props')" />
 </Project>
