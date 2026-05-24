@@ -23,7 +23,8 @@ public static class RenderingServiceCollectionExtensions
 
     public static IServiceCollection UseIlgpuBackend(this IServiceCollection services)
     {
-        services.AddSingleton<IRayTracingBackend, IlgpuRayTracingBackend>();
+        services.AddSingleton<IlgpuRayTracingBackend>();
+        services.AddSingleton<IRayTracingBackend>(sp => sp.GetRequiredService<IlgpuRayTracingBackend>());
         return services;
     }
 

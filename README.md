@@ -23,7 +23,7 @@ Scene + IMaterial  →  SceneCompiler  →  CompiledScene
 | `Novolis.Rendering.Compile` | `SceneCompiler` + BVH build |
 | `Novolis.Rendering.Runtime` | `CompiledScene`, `CameraSnapshot`, `IRayTracingBackend` |
 | `Novolis.Rendering.Backends.Cpu` | CPU path tracer (progressive accumulation) |
-| `Novolis.Rendering.Backends.Igpu` | ILGPU backend (CPU fallback until kernels ship) |
+| `Novolis.Rendering.Backends.Igpu` | ILGPU GPU path tracer (CPU fallback when no GPU or `deterministic: true`) |
 | `Novolis.Rendering.Backends.Vulkan` | Vulkan compute placeholder |
 | `Novolis.Rendering.DependencyInjection` | `AddRayTracing()`, `UseCpuBackend()` |
 | `Novolis.Rendering.Presentation.Silk` | Silk CPU presenter stub |
@@ -47,7 +47,7 @@ CI checks out `novolis-math` and runs `scripts/ci-pack-dependencies.ps1` before 
 ## Compose with Raylib (app layer)
 
 ```csharp
-services.AddRayTracing().UseCpuBackend();
+services.AddRayTracing().UseIlgpuBackend();
 services.AddSingleton<IFramePresenter, RaylibCpuFramePresenter>();
 
 var backend = provider.GetRequiredService<IRayTracingBackend>();

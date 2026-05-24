@@ -24,7 +24,7 @@ public sealed class BackendParityTests
         await cpu.UploadSceneAsync(scene);
         await cpu.RenderAsync(camera, 0);
 
-        using var igpu = new IlgpuRayTracingBackend();
+        using var igpu = new IlgpuRayTracingBackend(deterministic: true);
         await igpu.ResizeAsync(32, 24);
         await igpu.UploadSceneAsync(scene);
         await igpu.RenderAsync(camera, 0);
