@@ -11,7 +11,7 @@
     "Novolis.Rendering.Backends.Igpu": { "description": "ILGPU ray tracing backend." },
     "Novolis.Rendering.Backends.Vulkan": { "description": "Vulkan compute ray tracing backend." },
     "Novolis.Rendering.DependencyInjection": { "description": "AddRayTracing DI extensions." },
-    "Novolis.Rendering.Presentation.Silk": { "description": "Silk.NET CPU presenter stub." },
+    "Novolis.Rendering.Presentation.Silk": { "description": "Silk.NET window host and OpenGL frame presenter." },
     "Novolis.Rendering.Presentation.Raylib": { "description": "Raylib CPU frame presenter for traced RGBA buffers." },
     "Novolis.Rendering.Testing": { "description": "Golden test helpers for CPU frames." }
   }

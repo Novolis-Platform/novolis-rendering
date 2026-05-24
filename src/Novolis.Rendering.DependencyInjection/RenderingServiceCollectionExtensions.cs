@@ -30,7 +30,8 @@ public static class RenderingServiceCollectionExtensions
 
     public static IServiceCollection UseVulkanBackend(this IServiceCollection services)
     {
-        services.AddSingleton<IRayTracingBackend, VulkanRayTracingBackend>();
+        services.AddSingleton<VulkanRayTracingBackend>();
+        services.AddSingleton<IRayTracingBackend>(sp => sp.GetRequiredService<VulkanRayTracingBackend>());
         return services;
     }
 }

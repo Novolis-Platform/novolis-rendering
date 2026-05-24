@@ -5,6 +5,12 @@ namespace Novolis.Rendering.Runtime;
 /// <summary>Produces frames and owns accumulation; does not present to a window.</summary>
 public interface IRayTracingBackend
 {
+    /// <summary>Human-readable backend id for HUD and logs.</summary>
+    string BackendLabel { get; }
+
+    /// <summary>Latest GPU-native surface, when the backend produces one.</summary>
+    IRenderGpuSurface? GpuSurface { get; }
+
     ValueTask ResizeAsync(int width, int height, CancellationToken cancellationToken = default);
 
     ValueTask UploadSceneAsync(CompiledScene scene, CancellationToken cancellationToken = default);

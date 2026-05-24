@@ -5,8 +5,17 @@
     <AssemblyName>Novolis.Rendering.Presentation.Silk</AssemblyName>
     <PackageId>Novolis.Rendering.Presentation.Silk</PackageId>
     <IsPackable>true</IsPackable>
-    <Description>Silk.NET CPU frame presenter stub (swap for full Silk host later).</Description>
+    <Description>Silk.NET window host and OpenGL CPU frame presenter.</Description>
   </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Silk.NET.GLFW" />
+    <PackageReference Include="Silk.NET.Input" />
+    <PackageReference Include="Silk.NET.Input.Common" />
+    <PackageReference Include="Silk.NET.Input.Glfw" />
+    <PackageReference Include="Silk.NET.OpenGL" />
+    <PackageReference Include="Silk.NET.Windowing" />
+    <PackageReference Include="Silk.NET.Windowing.Glfw" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Novolis.Rendering.Presentation.Abstractions\Novolis.Rendering.Presentation.Abstractions.csproj" />
   </ItemGroup>

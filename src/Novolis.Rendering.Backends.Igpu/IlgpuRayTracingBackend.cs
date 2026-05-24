@@ -59,6 +59,8 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
 
     public string BackendLabel => _useGpu ? $"ILGPU ({_accelerator!.Name})" : "ILGPU (CPU fallback)";
 
+    public IRenderGpuSurface? GpuSurface => null;
+
     public IRenderOutput Output => _cpuFallback?.Output ?? _output;
 
     public int SampleCount => _cpuFallback?.SampleCount ?? _sampleCount;

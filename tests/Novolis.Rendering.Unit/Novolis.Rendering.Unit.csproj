@@ -11,6 +11,8 @@
   <ItemGroup>
     <ProjectReference Include="../../src/Novolis.Rendering.Backends.Cpu/Novolis.Rendering.Backends.Cpu.csproj" />
     <ProjectReference Include="../../src/Novolis.Rendering.Backends.Igpu/Novolis.Rendering.Backends.Igpu.csproj" />
+    <ProjectReference Include="../../src/Novolis.Rendering.Backends.Vulkan/Novolis.Rendering.Backends.Vulkan.csproj" />
+    <ProjectReference Include="../../src/Novolis.Rendering.Presentation.Silk/Novolis.Rendering.Presentation.Silk.csproj" />
     <ProjectReference Include="../../src/Novolis.Rendering.Compile/Novolis.Rendering.Compile.csproj" />
     <ProjectReference Include="../../src/Novolis.Rendering.DependencyInjection/Novolis.Rendering.DependencyInjection.csproj" />
     <ProjectReference Include="../../src/Novolis.Rendering.Materials/Novolis.Rendering.Materials.csproj" />

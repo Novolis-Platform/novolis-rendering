@@ -26,7 +26,7 @@ Scene + IMaterial  →  SceneCompiler  →  CompiledScene
 | `Novolis.Rendering.Backends.Igpu` | ILGPU GPU path tracer (CPU fallback when no GPU or `deterministic: true`) |
 | `Novolis.Rendering.Backends.Vulkan` | Vulkan compute placeholder |
 | `Novolis.Rendering.DependencyInjection` | `AddRayTracing()`, `UseCpuBackend()` |
-| `Novolis.Rendering.Presentation.Silk` | Silk CPU presenter stub |
+| `Novolis.Rendering.Presentation.Silk` | Silk.NET window + OpenGL CPU presenter |
 | `Novolis.Rendering.Presentation.Raylib` | Raylib CPU frame presenter |
 | `Novolis.Rendering` | Meta package referencing the stack |
 

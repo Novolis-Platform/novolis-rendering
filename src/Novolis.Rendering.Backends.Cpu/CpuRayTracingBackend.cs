@@ -19,6 +19,10 @@ public sealed class CpuRayTracingBackend : IRayTracingBackend
 
     public CpuRayTracingBackend(bool deterministic = false) => _deterministic = deterministic;
 
+    public string BackendLabel => _deterministic ? "CPU (deterministic)" : "CPU";
+
+    public IRenderGpuSurface? GpuSurface => null;
+
     public IRenderOutput Output => _output;
 
     public int SampleCount => _sampleCount;

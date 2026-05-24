@@ -1,17 +1,19 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <Import Project="$(MSBuildThisFileDirectory)..\..\build\Novolis.Rendering.Packaging.props" />
   <PropertyGroup>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RootNamespace>Novolis.Rendering.Backends.Vulkan</RootNamespace>
     <AssemblyName>Novolis.Rendering.Backends.Vulkan</AssemblyName>
     <PackageId>Novolis.Rendering.Backends.Vulkan</PackageId>
     <IsPackable>true</IsPackable>
-    <Description>Vulkan/Silk compute ray tracing backend (CPU fallback path initially).</Description>
+    <Description>Vulkan ray tracing backend (ILGPU compute + host-visible Vulkan buffer).</Description>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Silk.NET.Vulkan" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Novolis.Rendering.Backends.Cpu\Novolis.Rendering.Backends.Cpu.csproj" />
+    <ProjectReference Include="..\Novolis.Rendering.Backends.Igpu\Novolis.Rendering.Backends.Igpu.csproj" />
+    <ProjectReference Include="..\Novolis.Rendering.Presentation.Abstractions\Novolis.Rendering.Presentation.Abstractions.csproj" />
     <ProjectReference Include="..\Novolis.Rendering.Runtime\Novolis.Rendering.Runtime.csproj" />
   </ItemGroup>
 </Project>
