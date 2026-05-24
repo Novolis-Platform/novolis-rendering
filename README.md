@@ -2,14 +2,14 @@
 
 **Graphics-host-neutral ray tracing** — authoring, compilation, CPU/GPU backends, and framebuffer contracts. Computes RGBA frames; **does not** own windows, GPU draw calls, or input.
 
-Display adapters (Raylib texture upload, Silk.NET, …) live in host repos. See [library boundaries](https://github.com/Novolis-Platform/novolis-governance/blob/main/docs/library-boundaries.md).
+Display adapters (`Novolis.Rendering.Presentation.Raylib`, `Novolis.Rendering.Presentation.Silk`, …) live in this repo and reference host runtimes only. See [library boundaries](https://github.com/Novolis-Platform/novolis-governance/blob/main/docs/library-boundaries.md).
 
 ## Pipeline
 
 ```text
 Scene + IMaterial  →  SceneCompiler  →  CompiledScene
   →  IRayTracingBackend  →  IRenderOutput (CPU pixels)
-  →  IFramePresenter (Raylib / Silk in host repos)
+  →  IFramePresenter (Presentation.Raylib / Presentation.Silk)
 ```
 
 ## Packages
@@ -27,6 +27,7 @@ Scene + IMaterial  →  SceneCompiler  →  CompiledScene
 | `Novolis.Rendering.Backends.Vulkan` | Vulkan compute placeholder |
 | `Novolis.Rendering.DependencyInjection` | `AddRayTracing()`, `UseCpuBackend()` |
 | `Novolis.Rendering.Presentation.Silk` | Silk CPU presenter stub |
+| `Novolis.Rendering.Presentation.Raylib` | Raylib CPU frame presenter |
 | `Novolis.Rendering` | Meta package referencing the stack |
 
 Normative API: [docs/materials-and-backends.md](docs/materials-and-backends.md). Roadmap: [docs/roadmap-raytracing.md](docs/roadmap-raytracing.md).
@@ -62,7 +63,8 @@ Dogfood sample: [novolis-dogfooding/apps/RaytraceHello](../novolis-dogfooding/ap
 
 ## Policy
 
-- No reference to `Novolis.Raylib.*` or `Novolis.Simulation.*` from platform Rendering packages.
-- `novolis-raylib` may reference only `Novolis.Rendering.Presentation.Abstractions` — never Scene/Materials/Compile.
+- No reference to `Novolis.Raylib.*` or `Novolis.Simulation.*` from core rendering packages (Scene, Compile, backends).
+- `Novolis.Rendering.Presentation.Raylib` is the **only** rendering package that references `Novolis.Raylib.Runtime` (texture blit only).
+- `novolis-raylib` is a pure Raylib host — **no** `Novolis.Rendering.*` references.
 
 Repository: [github.com/Novolis-Platform/novolis-rendering](https://github.com/Novolis-Platform/novolis-rendering)

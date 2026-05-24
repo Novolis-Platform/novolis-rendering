@@ -56,7 +56,7 @@ Governance: [library-boundaries.md](https://github.com/Novolis-Platform/novolis-
 | `Novolis.Rendering` | rendering | meta | — |
 | `Novolis.Rendering.Presentation.Abstractions` | rendering | Abstractions | Raylib, Silk |
 | `Novolis.Rendering.DependencyInjection` | rendering | Backends.*, Presentation.Abstractions | Raylib, Silk |
-| `Novolis.Raylib.Presentation` | **raylib** | Rendering.Presentation.Abstractions, Raylib.Runtime | **Rendering.Scene**, Materials |
+| `Novolis.Rendering.Presentation.Raylib` | **rendering** | Presentation.Abstractions, Raylib.Runtime | Scene, Materials |
 | `Novolis.Silk.Presentation` | silk or rendering | Presentation.Abstractions, Silk | Scene, Materials |
 
 **Migrate / rename today:**
@@ -135,10 +135,11 @@ public interface IRenderGpuSurface
 
 - `IRenderOutput` on backend: `TryGetCpuPixels()` OR `TryGetGpuSurface()` — CPU path always available for tests.
 
-### 1b — `Novolis.Raylib.Presentation` (in **novolis-raylib**)
+### 1b — `Novolis.Rendering.Presentation.Raylib` (in **novolis-rendering**)
 
-- New optional package; references `Novolis.Rendering.Presentation.Abstractions` + `Novolis.Raylib.Runtime`.
-- `RaylibCpuFramePresenter` — `LoadImageEx` / `UpdateTexture` / `DrawTexture` from `Rgba32[]`.
+- References `Novolis.Rendering.Presentation.Abstractions` + `Novolis.Raylib.Runtime` only.
+- `RaylibCpuFramePresenter` — `UpdateTexture` / `DrawTexture` from `Rgba32[]`.
+- **`novolis-raylib` stays pure** — no `Novolis.Rendering.*` references.
 - Extension: `RayGameContext.PresentFrame(IFramePresenter, ImageBuffer)`.
 - **Forbidden in this package:** `using Novolis.Rendering.Scene`, `Materials`, `Compile`, any `CompiledScene`.
 
@@ -149,7 +150,7 @@ public interface IRenderGpuSurface
 
 ### 1d — Dogfood sample `RaytraceHello`
 
-- App references: Rendering (cpu backend) + Raylib.Game + Raylib.Presentation.
+- App references: Rendering (backend + DI) + Raylib.Game + Rendering.Presentation.Raylib.
 - Loop: compile stub scene → render → `PresentCpuFrame` → HUD via existing Raylib.
 
 **Exit:** Toggle presenter implementation in DI without changing scene code; grep confirms no `Scene` in `novolis-raylib/src`.

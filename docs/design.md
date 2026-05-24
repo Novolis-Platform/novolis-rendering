@@ -36,7 +36,7 @@ Full phased plan (materials, compile pipeline, backends, Raylib/Silk presenters)
 
 Optional host packages — **no scene/material types**:
 
-- `Novolis.Raylib.Presentation` (in `novolis-raylib`) — `IFramePresenter` → texture blit
+- `Novolis.Rendering.Presentation.Raylib` — `IFramePresenter` → Raylib texture blit
 - `Novolis.Silk.Presentation` — same contract via Silk.NET
 
 Golden tests for the tracer use PNG hashes over CPU pixels without native Raylib.
