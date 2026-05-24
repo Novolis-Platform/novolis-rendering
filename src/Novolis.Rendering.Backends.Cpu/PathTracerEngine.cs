@@ -8,6 +8,7 @@ internal static class PathTracerEngine
 {
     private const int MaxDepth = 4;
     private const float Epsilon = 1e-4f;
+    private const int TileSize = 32;
 
     public static void RenderSample(
         Vector3[] accumulation,
@@ -20,29 +21,44 @@ internal static class PathTracerEngine
         bool deterministic)
     {
         var invCount = 1f / (sampleIndex + 1);
-        var options = deterministic ? new ParallelOptions { MaxDegreeOfParallelism = 1 } : new ParallelOptions();
+        var tanHalfFov = MathF.Tan(camera.VerticalFovRadians * 0.5f);
+        var aspect = (float)width / height;
+        var tilesX = (width + TileSize - 1) / TileSize;
+        var tilesY = (height + TileSize - 1) / TileSize;
+        var tileCount = tilesX * tilesY;
+        var options = deterministic
+            ? new ParallelOptions { MaxDegreeOfParallelism = 1 }
+            : new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount };
 
-        Parallel.For(0, height, options, y =>
+        Parallel.For(0, tileCount, options, tileIndex =>
         {
-            var rng = deterministic
-                ? new Random(42 + sampleIndex * 100_000 + y * width)
-                : new Random(HashCode.Combine(y, sampleIndex, Environment.TickCount));
+            var tileY = tileIndex / tilesX;
+            var tileX = tileIndex % tilesX;
+            var y0 = tileY * TileSize;
+            var y1 = System.Math.Min(y0 + TileSize, height);
+            var x0 = tileX * TileSize;
+            var x1 = System.Math.Min(x0 + TileSize, width);
 
-            var tanHalfFov = MathF.Tan(camera.VerticalFovRadians * 0.5f);
-            var aspect = (float)width / height;
-            for (var x = 0; x < width; x++)
+            var rng = deterministic
+                ? new Random(42 + sampleIndex * 100_000 + tileIndex * 7919)
+                : new Random(HashCode.Combine(tileIndex, sampleIndex, Environment.TickCount));
+
+            for (var y = y0; y < y1; y++)
             {
-                var jitterX = deterministic ? 0.5f : (float)rng.NextDouble();
-                var jitterY = deterministic ? 0.5f : (float)rng.NextDouble();
-                var u = (2f * (x + jitterX) / width - 1f) * tanHalfFov * aspect;
-                var v = (2f * (y + jitterY) / height - 1f) * tanHalfFov;
-                var dir = Vector3.Normalize(camera.Forward + u * camera.Right + v * camera.Up);
-                var ray = new Ray3(camera.Position, dir);
-                var radiance = Trace(in ray, scene, 0, ref rng);
-                var idx = y * width + x;
-                var blended = accumulation[idx] + radiance;
-                accumulation[idx] = blended;
-                display[idx] = ToRgba(blended * invCount);
+                for (var x = x0; x < x1; x++)
+                {
+                    var jitterX = deterministic ? 0.5f : (float)rng.NextDouble();
+                    var jitterY = deterministic ? 0.5f : (float)rng.NextDouble();
+                    var u = (2f * (x + jitterX) / width - 1f) * tanHalfFov * aspect;
+                    var v = (2f * (y + jitterY) / height - 1f) * tanHalfFov;
+                    var dir = Vector3.Normalize(camera.Forward + u * camera.Right + v * camera.Up);
+                    var ray = new Ray3(camera.Position, dir);
+                    var radiance = Trace(in ray, scene, 0, ref rng);
+                    var idx = y * width + x;
+                    var blended = accumulation[idx] + radiance;
+                    accumulation[idx] = blended;
+                    display[idx] = ToRgba(blended * invCount);
+                }
             }
         });
     }
@@ -100,6 +116,17 @@ internal static class PathTracerEngine
         }
 
         radiance += baseColor * 0.03f;
+
+        if (depth < MaxDepth && metallic > 0.75f)
+        {
+            var mirrorWeight = metallic * (1f - MathF.Min(roughness / 0.12f, 1f));
+            if (mirrorWeight > 0.01f)
+            {
+                var reflectDir = Vector3.Reflect(ray.Direction, n);
+                var reflectRay = new Ray3(hit.Point + n * Epsilon, Vector3.Normalize(reflectDir));
+                radiance += baseColor * Trace(in reflectRay, scene, depth + 1, ref rng) * mirrorWeight;
+            }
+        }
 
         if (depth < MaxDepth && roughness > 0.01f && rng.NextDouble() > metallic)
         {
