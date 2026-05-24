@@ -8,10 +8,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Description>Present CPU ray-traced frames via Raylib textures (host adapter).</Description>
   </PropertyGroup>
-  <ItemGroup Condition="Exists('$(MSBuildThisFileDirectory)..\..\..\..\novolis-raylib\src\Novolis.Raylib.Runtime\Novolis.Raylib.Runtime.csproj')">
-    <ProjectReference Include="..\..\..\..\novolis-raylib\src\Novolis.Raylib.Runtime\Novolis.Raylib.Runtime.csproj" />
-  </ItemGroup>
-  <ItemGroup Condition="!Exists('$(MSBuildThisFileDirectory)..\..\..\..\novolis-raylib\src\Novolis.Raylib.Runtime\Novolis.Raylib.Runtime.csproj')">
+  <ItemGroup>
     <PackageReference Include="Novolis.Raylib.Runtime" />
   </ItemGroup>
   <ItemGroup>
