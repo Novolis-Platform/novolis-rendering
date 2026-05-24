@@ -3,14 +3,8 @@
 ## Prerequisites
 
 - .NET SDK **10.0.100+** (`global.json`)
-- Local `Novolis.Math.Geometry` on the feed (sibling checkout):
-
-```powershell
-cd d:\novolis\novolis-math
-.\scripts\pack-local.ps1
-```
-
-Set `NOVOLIS_LOCAL_FEED` or use the default `..\artifacts\nuget-local` next to this repo.
+- GitHub Packages credentials for `Novolis.*` (see [nuget-setup.md](https://github.com/Novolis-Platform/novolis-governance/blob/main/docs/nuget-setup.md))
+- Repo `nuget.config`: **nuget.org** + **github** only — no local feeds
 
 ## Build and test
 
@@ -41,8 +35,6 @@ await backend.RenderAsync(camera, 0);
 // backend.Output → hand off to your presenter (Raylib, Silk.NET, file export, …)
 ```
 
-## Pack locally
+## Publishing
 
-```powershell
-.\scripts\pack-local.ps1
-```
+Library releases go to **GitHub Packages** via merge to `main` and the repo publish workflow — not to a local folder feed.
