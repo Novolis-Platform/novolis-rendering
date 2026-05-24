@@ -1,3 +1,31 @@
+<!-- novolis-package-index:start -->
+> **GitHub Packages shows this repository README on every package page** (upstream limitation).
+> Open the **package README** for install and quick start — embedded in each .nupkg and linked below.
+
+## Published packages
+
+| Package | Install | Package README |
+|---------|---------|----------------|
+| `Novolis.Rendering` | `dotnet add package Novolis.Rendering` | [README](https://github.com/Novolis-Platform/novolis-rendering/blob/main/src/Novolis.Rendering/README.md) |
+| `Novolis.Rendering.Abstractions` | `dotnet add package Novolis.Rendering.Abstractions` | [README](https://github.com/Novolis-Platform/novolis-rendering/blob/main/src/Novolis.Rendering.Abstractions/README.md) |
+| `Novolis.Rendering.Backends.Cpu` | `dotnet add package Novolis.Rendering.Backends.Cpu` | [README](https://github.com/Novolis-Platform/novolis-rendering/blob/main/src/Novolis.Rendering.Backends.Cpu/README.md) |
+| `Novolis.Rendering.Backends.Igpu` | `dotnet add package Novolis.Rendering.Backends.Igpu` | [README](https://github.com/Novolis-Platform/novolis-rendering/blob/main/src/Novolis.Rendering.Backends.Igpu/README.md) |
+| `Novolis.Rendering.Backends.Vulkan` | `dotnet add package Novolis.Rendering.Backends.Vulkan` | [README](https://github.com/Novolis-Platform/novolis-rendering/blob/main/src/Novolis.Rendering.Backends.Vulkan/README.md) |
+| `Novolis.Rendering.Compile` | `dotnet add package Novolis.Rendering.Compile` | [README](https://github.com/Novolis-Platform/novolis-rendering/blob/main/src/Novolis.Rendering.Compile/README.md) |
+| `Novolis.Rendering.DependencyInjection` | `dotnet add package Novolis.Rendering.DependencyInjection` | [README](https://github.com/Novolis-Platform/novolis-rendering/blob/main/src/Novolis.Rendering.DependencyInjection/README.md) |
+| `Novolis.Rendering.Materials` | `dotnet add package Novolis.Rendering.Materials` | [README](https://github.com/Novolis-Platform/novolis-rendering/blob/main/src/Novolis.Rendering.Materials/README.md) |
+| `Novolis.Rendering.PathTrace.Demos` | `dotnet add package Novolis.Rendering.PathTrace.Demos` | [README](https://github.com/Novolis-Platform/novolis-rendering/blob/main/src/Novolis.Rendering.PathTrace.Demos/README.md) |
+| `Novolis.Rendering.Presentation.Abstractions` | `dotnet add package Novolis.Rendering.Presentation.Abstractions` | [README](https://github.com/Novolis-Platform/novolis-rendering/blob/main/src/Novolis.Rendering.Presentation.Abstractions/README.md) |
+| `Novolis.Rendering.Presentation.Raylib` | `dotnet add package Novolis.Rendering.Presentation.Raylib` | [README](https://github.com/Novolis-Platform/novolis-rendering/blob/main/src/Novolis.Rendering.Presentation.Raylib/README.md) |
+| `Novolis.Rendering.Presentation.Silk` | `dotnet add package Novolis.Rendering.Presentation.Silk` | [README](https://github.com/Novolis-Platform/novolis-rendering/blob/main/src/Novolis.Rendering.Presentation.Silk/README.md) |
+| `Novolis.Rendering.Runtime` | `dotnet add package Novolis.Rendering.Runtime` | [README](https://github.com/Novolis-Platform/novolis-rendering/blob/main/src/Novolis.Rendering.Runtime/README.md) |
+| `Novolis.Rendering.Scene` | `dotnet add package Novolis.Rendering.Scene` | [README](https://github.com/Novolis-Platform/novolis-rendering/blob/main/src/Novolis.Rendering.Scene/README.md) |
+| `Novolis.Rendering.Testing` | `dotnet add package Novolis.Rendering.Testing` | [README](https://github.com/Novolis-Platform/novolis-rendering/blob/main/src/Novolis.Rendering.Testing/README.md) |
+
+For NuGet.org and Visual Studio, the **embedded** README.md inside each package is authoritative.
+
+<!-- novolis-package-index:end -->
+
 # novolis-rendering
 
 **Graphics-host-neutral ray tracing** — authoring, compilation, CPU/GPU backends, and framebuffer contracts. Computes RGBA frames; **does not** own windows, GPU draw calls, or input.
@@ -68,3 +96,4 @@ Dogfood sample: [novolis-dogfooding/apps/RaytraceHello](../novolis-dogfooding/ap
 - `novolis-raylib` is a pure Raylib host — **no** `Novolis.Rendering.*` references.
 
 Repository: [github.com/Novolis-Platform/novolis-rendering](https://github.com/Novolis-Platform/novolis-rendering)
+
