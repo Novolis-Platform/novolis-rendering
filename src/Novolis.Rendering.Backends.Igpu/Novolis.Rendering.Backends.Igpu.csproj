@@ -12,6 +12,9 @@
     <PackageReference Include="ILGPU.Algorithms" />
   </ItemGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="Novolis.Rendering.Unit" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\Novolis.Rendering.Backends.Cpu\Novolis.Rendering.Backends.Cpu.csproj" />
     <ProjectReference Include="..\Novolis.Rendering.Runtime\Novolis.Rendering.Runtime.csproj" />
   </ItemGroup>

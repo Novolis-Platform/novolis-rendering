@@ -16,11 +16,6 @@
     <Project Path="src/Novolis.Rendering/Novolis.Rendering.csproj" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="tests/Novolis.Rendering.Abstractions.Tests/Novolis.Rendering.Abstractions.Tests.csproj" />
-    <Project Path="tests/Novolis.Rendering.Materials.Tests/Novolis.Rendering.Materials.Tests.csproj" />
-    <Project Path="tests/Novolis.Rendering.Compile.Tests/Novolis.Rendering.Compile.Tests.csproj" />
-    <Project Path="tests/Novolis.Rendering.Backends.Cpu.Tests/Novolis.Rendering.Backends.Cpu.Tests.csproj" />
-    <Project Path="tests/Novolis.Rendering.Backends.Igpu.Tests/Novolis.Rendering.Backends.Igpu.Tests.csproj" />
-    <Project Path="tests/Novolis.Rendering.DependencyInjection.Tests/Novolis.Rendering.DependencyInjection.Tests.csproj" />
-  </Folder>
+    <Project Path="tests/Novolis.Rendering.Unit/Novolis.Rendering.Unit.csproj" />
+    </Folder>
 </Solution>

@@ -20,8 +20,8 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
     private readonly object _renderLock = new();
 
     private ImageBuffer? _display;
-    private Vector3[]? _accumulationCpu;
-    private MemoryBuffer1D<Vector3, Stride1D.Dense>? _accumulationGpu;
+    private Float3[]? _accumulationCpu;
+    private MemoryBuffer1D<Float3, Stride1D.Dense>? _accumulationGpu;
     private MemoryBuffer1D<byte, Stride1D.Dense>? _displayGpu;
     private MemoryBuffer1D<GpuTriangle, Stride1D.Dense>? _trianglesGpu;
     private MemoryBuffer1D<GpuMaterial, Stride1D.Dense>? _materialsGpu;
@@ -34,7 +34,7 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
     private int _height;
     private int _bvhRootIndex = -1;
     private bool _useGpu;
-    private Action<Index1D, int, int, int, IlgpuCameraParams, ArrayView<Vector3>, ArrayView<byte>,
+    private Action<Index1D, int, int, int, IlgpuCameraParams, ArrayView<Float3>, ArrayView<byte>,
         ArrayView<GpuTriangle>, ArrayView<GpuMaterial>, ArrayView<GpuLight>, int, ArrayView<GpuBvhNode>, int,
         ArrayView<int>>? _traceKernel;
 
@@ -74,7 +74,7 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
             _width = width;
             _height = height;
             _display = new ImageBuffer(width, height);
-            _accumulationCpu = new Vector3[width * height];
+            _accumulationCpu = new Float3[width * height];
             Array.Clear(_accumulationCpu);
             _output.Buffer = _display;
 
@@ -82,7 +82,7 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
             if (_useGpu)
             {
                 var count = width * height;
-                _accumulationGpu = _accelerator!.Allocate1D<Vector3>(count);
+                _accumulationGpu = _accelerator!.Allocate1D<Float3>(count);
                 _displayGpu = _accelerator.Allocate1D<byte>(count * 4);
             }
 
@@ -192,7 +192,7 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
         var pixelCount = _width * _height;
 
         _traceKernel ??= accelerator.LoadAutoGroupedStreamKernel<Index1D, int, int, int, IlgpuCameraParams,
-            ArrayView<Vector3>, ArrayView<byte>, ArrayView<GpuTriangle>, ArrayView<GpuMaterial>, ArrayView<GpuLight>,
+            ArrayView<Float3>, ArrayView<byte>, ArrayView<GpuTriangle>, ArrayView<GpuMaterial>, ArrayView<GpuLight>,
             int, ArrayView<GpuBvhNode>, int, ArrayView<int>>(IlgpuPathTracerKernels.TracePixelKernel);
 
         _traceKernel(
