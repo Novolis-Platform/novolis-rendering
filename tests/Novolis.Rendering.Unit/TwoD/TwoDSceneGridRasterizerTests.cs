@@ -11,9 +11,13 @@ public sealed class TwoDSceneGridRasterizerTests
         var scene = new TwoDScene();
         scene.AddPlatform(1f, 1f, 3f, 3f, new Rgba32(90, 110, 150));
 
-        var grids = scene.ToLayeredGrids(TwoDGridRasterOptions.WorldCells(
-            cellSize: 1f,
-            worldBounds: new TwoDWorldBounds(0f, 0f, 6f, 6f)));
+        var grids = scene.ToLayeredGrids(new TwoDGridRasterOptions
+        {
+            Space = TwoDGridCoordinateSpace.WorldCells,
+            CellSize = 1f,
+            WorldBounds = new TwoDWorldBounds(0f, 0f, 6f, 6f),
+            DrawPolygonOutlines = false,
+        });
 
         var world = grids.TryGetLayer(TwoDDrawLayer.World)!;
         await Assert.That((world[2, 2, 0] is Rgba32 c ? c.A : 0)).IsGreaterThan(0);
