@@ -47,6 +47,26 @@ SilkTwoDGame.Run("Platformer", 800, 600, ctx =>
 | `Novolis.Rendering.TwoD` | Scene, collision, HUD, menus |
 | `Novolis.Rendering.Backends.TwoD.Silk` | Silk.NET OpenGL renderer + game loop |
 
+## In-memory layered grids (tests / debug)
+
+Rasterize a scene to per-layer `DenseGrid<Rgba32>` without a GPU:
+
+```csharp
+var grids = scene.ToLayeredGrids(TwoDGridRasterOptions.WorldCells(
+    cellSize: 1f,
+    worldBounds: new TwoDWorldBounds(0f, 0f, 40f, 40f)));
+
+var ascii = grids.ToAscii(TwoDDrawLayer.World);
+var merged = grids.CompositedToAscii();
+```
+
+| Mode | Cell meaning |
+|------|----------------|
+| `WorldCells` | One cell per world XZ slab (`CellSize` world units) |
+| `ScreenPixels` | One cell per framebuffer pixel |
+
+Layers: `Background`, `World`, `Foreground`, `Hud`, `Menu`, plus `Composited` in draw order.
+
 ## Conventions
 
 - World space uses BCL `Vector3` on the **XZ plane** (Y = 0).

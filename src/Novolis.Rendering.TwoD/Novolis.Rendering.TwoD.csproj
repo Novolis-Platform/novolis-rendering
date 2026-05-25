@@ -9,6 +9,7 @@
     <PackageTags>rendering;2d;sprites;orthographic</PackageTags>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Novolis.Math.Arrays" />
     <PackageReference Include="Novolis.Math.Geometry" />
     <PackageReference Include="Novolis.Math.Topology" />
   </ItemGroup>

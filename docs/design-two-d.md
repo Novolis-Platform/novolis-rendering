@@ -28,6 +28,10 @@ Path tracing packages (`Novolis.Rendering.Runtime`, `Backends.Cpu`, etc.) stay s
 | HUD | `TwoDHud.AddText` / `AddSprite` |
 | Menus | `TwoDMenuStack.Push` + `SilkTwoDGame` menu keys |
 
+## Layered grid export
+
+`TwoDSceneGridRasterizer` / `TwoDScene.ToLayeredGrids()` produce per-`TwoDDrawLayer` `DenseGrid<Rgba32>` buffers for unit tests and ASCII debug (`TwoDLayerGridSet.ToAscii`). No Silk/OpenGL required.
+
 ## Related
 
 - [design.md](design.md) — path tracing stack
