@@ -1,3 +1,4 @@
+using System.Numerics;
 using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
@@ -146,7 +147,8 @@ public sealed class SilkTwoDGameContext
         _mouseDelta = default;
         foreach (var mouse in _input?.Mice ?? [])
         {
-            var pos = mouse.Position;
+            var p = mouse.Position;
+            var pos = new Vector2D<float>(p.X, p.Y);
             _mouseDelta += pos - _mousePosition;
             _mousePosition = pos;
         }
