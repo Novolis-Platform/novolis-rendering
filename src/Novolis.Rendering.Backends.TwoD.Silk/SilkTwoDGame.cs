@@ -62,17 +62,35 @@ public static class SilkTwoDGame
             ctx.EndInputFrame();
         };
 
+        void ReleaseRenderer()
+        {
+            if (renderer is null)
+            {
+                return;
+            }
+
+            window.GLContext?.MakeCurrent();
+            renderer.Dispose();
+            renderer = null;
+        }
+
         window.Render += _ =>
         {
-            if (renderer is not null)
+            if (renderer is null)
             {
-                renderer.DrawScene(ctx.Scene);
+                return;
+            }
+
+            renderer.DrawScene(ctx.Scene);
+            if (window.IsClosing)
+            {
+                ReleaseRenderer();
             }
         };
 
+        window.Closing += ReleaseRenderer;
+
         window.Run();
-        window.Dispose();
-        renderer?.Dispose();
     }
 
     private static void HandleMenuInput(SilkTwoDGameContext ctx)
