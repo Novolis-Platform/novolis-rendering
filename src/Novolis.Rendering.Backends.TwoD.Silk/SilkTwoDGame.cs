@@ -20,7 +20,18 @@ public static class SilkTwoDGame
         int width,
         int height,
         Action<SilkTwoDGameContext>? initialize,
-        Action<SilkTwoDGameContext> update)
+        Action<SilkTwoDGameContext> update) =>
+        Run(title, width, height, initialize, update, renderOverlay: null, captureSession: null);
+
+    /// <summary>Runs a 2D game with optional overlay rendering and framebuffer capture.</summary>
+    public static void Run(
+        string title,
+        int width,
+        int height,
+        Action<SilkTwoDGameContext>? initialize,
+        Action<SilkTwoDGameContext> update,
+        Action<SilkTwoDGameContext>? renderOverlay,
+        SilkTwoDFrameCaptureSession? captureSession)
     {
         ArgumentNullException.ThrowIfNull(update);
         var options = WindowOptions.Default with
@@ -45,7 +56,7 @@ public static class SilkTwoDGame
         {
             var gl = GL.GetApi(window);
             renderer = new SilkTwoDRenderer(gl);
-            ctx.Bind(window, renderer, window.CreateInput());
+            ctx.Bind(window, renderer, window.CreateInput(), gl);
         };
 
         window.Update += delta =>
@@ -82,6 +93,8 @@ public static class SilkTwoDGame
             }
 
             renderer.DrawScene(ctx.Scene);
+            renderOverlay?.Invoke(ctx);
+            captureSession?.CaptureAfterDraw(ctx.Gl, ctx.Width, ctx.Height);
             if (window.IsClosing)
             {
                 ReleaseRenderer();

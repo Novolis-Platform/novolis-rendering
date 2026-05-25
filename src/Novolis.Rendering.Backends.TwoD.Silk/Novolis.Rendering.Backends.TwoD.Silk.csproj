@@ -18,8 +18,10 @@
     <PackageReference Include="Silk.NET.Windowing" />
     <PackageReference Include="Silk.NET.Windowing.Glfw" />
     <PackageReference Include="StbImageSharp" />
+    <PackageReference Include="StbImageWriteSharp" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Novolis.Rendering.Presentation.Abstractions\Novolis.Rendering.Presentation.Abstractions.csproj" />
     <ProjectReference Include="..\Novolis.Rendering.TwoD\Novolis.Rendering.TwoD.csproj" />
   </ItemGroup>
 </Project>

@@ -30,6 +30,11 @@ public sealed class SilkTwoDGameContext
     public SilkTwoDRenderer Renderer =>
         _renderer ?? throw new InvalidOperationException("Renderer is not bound.");
 
+    /// <summary>Active OpenGL API (valid after window load).</summary>
+    public GL Gl => _gl ?? throw new InvalidOperationException("OpenGL is not bound.");
+
+    private GL? _gl;
+
     /// <summary>Framebuffer width in pixels.</summary>
     public int Width => _width;
 
@@ -45,11 +50,12 @@ public sealed class SilkTwoDGameContext
     /// <summary>Cursor delta since the previous frame in pixels.</summary>
     public Vector2D<float> MouseDelta => _mouseDelta;
 
-    internal void Bind(IWindow window, SilkTwoDRenderer renderer, IInputContext input)
+    internal void Bind(IWindow window, SilkTwoDRenderer renderer, IInputContext input, GL gl)
     {
         _window = window;
         _renderer = renderer;
         _input = input;
+        _gl = gl;
     }
 
     internal void SetFrame(Vector2D<int> size, float deltaSeconds)
