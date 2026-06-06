@@ -11,21 +11,20 @@ public sealed class PathTraceDisplayBuffer
     private int _width;
     private int _height;
 
+    /// <summary>Increments on each <see cref="Publish"/>.</summary>
+    public int FrameGeneration { get; private set; }
+
     /// <summary>Sample count of the last published frame.</summary>
     public int DisplayedSampleCount { get; private set; }
 
     /// <summary>Clears pixels and resets the displayed sample count.</summary>
-    /// <param name="width">Framebuffer width.</param>
-    /// <param name="height">Framebuffer height.</param>
     public void Invalidate(int width, int height)
     {
         lock (_gate)
         {
             var count = width * height;
             if (_pixels is null || _pixels.Length != count)
-            {
                 _pixels = new Rgba32[count];
-            }
 
             _width = width;
             _height = height;
@@ -35,41 +34,45 @@ public sealed class PathTraceDisplayBuffer
     }
 
     /// <summary>Copies a traced frame into the display buffer.</summary>
-    /// <param name="source">RGBA pixels.</param>
-    /// <param name="width">Width in pixels.</param>
-    /// <param name="height">Height in pixels.</param>
-    /// <param name="sampleCount">Accumulated sample count from the backend.</param>
     public void Publish(ReadOnlySpan<Rgba32> source, int width, int height, int sampleCount)
     {
         lock (_gate)
         {
             var count = width * height;
             if (_pixels is null || _pixels.Length != count)
-            {
                 _pixels = new Rgba32[count];
-            }
 
             source.CopyTo(_pixels);
             _width = width;
             _height = height;
             DisplayedSampleCount = sampleCount;
+            FrameGeneration++;
         }
     }
 
-    /// <summary>Presents the latest frame when dimensions are valid.</summary>
+    /// <summary>Presents the latest frame when dimensions are valid and generation changed.</summary>
     /// <param name="presenter">Host presenter.</param>
-    /// <returns><see langword="true"/> when a frame was presented.</returns>
-    public bool TryPresent(IFramePresenter presenter)
+    /// <param name="lastPresentedGeneration">Updated when a frame is presented.</param>
+    public bool TryPresent(IFramePresenter presenter, ref int lastPresentedGeneration)
     {
         lock (_gate)
         {
             if (_pixels is null || _width <= 0 || _height <= 0)
-            {
                 return false;
-            }
+
+            if (FrameGeneration == lastPresentedGeneration)
+                return false;
 
             presenter.PresentCpuFrame(_pixels, _width, _height);
+            lastPresentedGeneration = FrameGeneration;
             return true;
         }
+    }
+
+    /// <summary>Presents the latest frame (always uploads).</summary>
+    public bool TryPresent(IFramePresenter presenter)
+    {
+        var generation = -1;
+        return TryPresent(presenter, ref generation);
     }
 }
