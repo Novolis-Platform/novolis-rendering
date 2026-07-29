@@ -8,6 +8,10 @@
     <Description>Golden test helpers for headless CPU frame output.</Description>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Novolis.Math.Arrays" />
+    <PackageReference Include="Novolis.Math.Geometry" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\Novolis.Rendering.Presentation.Abstractions\Novolis.Rendering.Presentation.Abstractions.csproj" />
   </ItemGroup>
 </Project>

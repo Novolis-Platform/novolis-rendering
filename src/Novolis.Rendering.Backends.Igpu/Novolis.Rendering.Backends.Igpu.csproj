@@ -10,6 +10,7 @@
   <ItemGroup>
     <PackageReference Include="ILGPU" />
     <PackageReference Include="ILGPU.Algorithms" />
+    <PackageReference Include="Novolis.Math.Geometry" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Novolis.Rendering.Unit" />

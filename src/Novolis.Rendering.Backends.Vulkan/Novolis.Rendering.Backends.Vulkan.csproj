@@ -9,6 +9,7 @@
     <Description>Vulkan compute path tracing backend (SPIR-V).</Description>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Novolis.Math.Geometry" />
     <PackageReference Include="Silk.NET.Shaderc" />
     <PackageReference Include="Silk.NET.Shaderc.Native" />
     <PackageReference Include="Silk.NET.Vulkan" />

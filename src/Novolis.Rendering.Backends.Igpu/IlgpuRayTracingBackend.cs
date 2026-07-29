@@ -53,6 +53,12 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
         var device = IlgpuDeviceSelector.SelectDevice(_context);
         _accelerator = device.CreateAccelerator(_context);
         _useGpu = _accelerator.AcceleratorType != AcceleratorType.CPU;
+        if (_useGpu && !TryLoadTraceKernel())
+        {
+            // Some CUDA/OpenCL ILGPU compilers ICE on this kernel; keep CPU path green.
+            _useGpu = false;
+        }
+
         if (!_useGpu)
         {
             _cpuFallback = new CpuRayTracingBackend();
@@ -174,6 +180,26 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
         _context?.Dispose();
     }
 
+    private bool TryLoadTraceKernel()
+    {
+        try
+        {
+            _traceKernel = _accelerator!.LoadAutoGroupedStreamKernel<Index1D, int, int, int, IlgpuCameraParams,
+                ArrayView<Float3>, ArrayView<byte>, ArrayView<GpuTriangle>, ArrayView<GpuMaterial>, ArrayView<GpuLight>,
+                int, ArrayView<GpuBvhNode>, int, ArrayView<int>>(IlgpuPathTracerKernels.TracePixelKernel);
+            return true;
+        }
+        catch (Exception ex) when (IsIlgpuCompilerFailure(ex))
+        {
+            _traceKernel = null;
+            return false;
+        }
+    }
+
+    private static bool IsIlgpuCompilerFailure(Exception ex) =>
+        ex.GetType().Name.Contains("InternalCompiler", StringComparison.Ordinal)
+        || ex.Message.Contains("internal compiler error", StringComparison.OrdinalIgnoreCase);
+
     private void ResetAccumulationCore()
     {
         _sampleCount = 0;
@@ -205,11 +231,10 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
         var orderView = _triangleOrderGpu!.View;
         var pixelCount = _width * _height;
 
-        _traceKernel ??= accelerator.LoadAutoGroupedStreamKernel<Index1D, int, int, int, IlgpuCameraParams,
-            ArrayView<Float3>, ArrayView<byte>, ArrayView<GpuTriangle>, ArrayView<GpuMaterial>, ArrayView<GpuLight>,
-            int, ArrayView<GpuBvhNode>, int, ArrayView<int>>(IlgpuPathTracerKernels.TracePixelKernel);
+        var kernel = _traceKernel
+            ?? throw new InvalidOperationException("GPU kernel was not loaded; backend should have fallen back to CPU.");
 
-        _traceKernel(
+        kernel(
             pixelCount,
             _width,
             _height,

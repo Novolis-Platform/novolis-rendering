@@ -54,7 +54,7 @@ internal static class IlgpuPathTracerKernels
             var mat = materials[hit.MaterialIndex];
             if (mat.Model == MaterialModel.Emissive)
             {
-                radiance = Float3.Add(radiance, Float3.Mul(throughput, Float3.Scale(new Float3(mat.A.X, mat.A.Y, mat.A.Z), mat.A.W)));
+                radiance = Float3.Add(radiance, Float3.Mul(throughput, Float3.Scale(Float3.Create(mat.A.X, mat.A.Y, mat.A.Z), mat.A.W)));
                 break;
             }
 
@@ -67,7 +67,7 @@ internal static class IlgpuPathTracerKernels
                 break;
             }
 
-            var baseColor = new Float3(mat.A.X, mat.A.Y, mat.A.Z);
+            var baseColor = Float3.Create(mat.A.X, mat.A.Y, mat.A.Z);
             var roughness = TracerMath.Max(mat.A.W, 0.04f);
             var metallic = mat.B.X;
             var n = hit.Normal;
@@ -112,11 +112,11 @@ internal static class IlgpuPathTracerKernels
         int bvhRootIndex,
         ArrayView<int> triangleOrder)
     {
-        var baseColor = new Float3(mat.A.X, mat.A.Y, mat.A.Z);
+        var baseColor = Float3.Create(mat.A.X, mat.A.Y, mat.A.Z);
         var roughness = TracerMath.Max(mat.A.W, 0.04f);
         var metallic = mat.B.X;
         var emissionStrength = mat.B.Y;
-        var emissionColor = new Float3(mat.C.X, mat.C.Y, mat.C.Z);
+        var emissionColor = Float3.Create(mat.C.X, mat.C.Y, mat.C.Z);
         var n = hit.Normal;
         var v = Float3.Normalize(Float3.Scale(incomingDirection, -1f));
         var radiance = Float3.Scale(emissionColor, emissionStrength);
@@ -125,7 +125,7 @@ internal static class IlgpuPathTracerKernels
         for (var i = 0; i < lightsToProcess; i++)
         {
             var light = lights[i];
-            var lightPos = new Float3(
+            var lightPos = Float3.Create(
                 light.DirectionOrPosition.X,
                 light.DirectionOrPosition.Y,
                 light.DirectionOrPosition.Z);
@@ -144,9 +144,9 @@ internal static class IlgpuPathTracerKernels
 
             var ndotl = TracerMath.Max(0f, Float3.Dot(n, lightDir));
             var diffuse = Float3.Scale(baseColor, 1f - metallic);
-            var f0 = Float3.Lerp(new Float3(0.04f, 0.04f, 0.04f), baseColor, metallic);
+            var f0 = Float3.Lerp(Float3.Create(0.04f, 0.04f, 0.04f), baseColor, metallic);
             var spec = GgxSpec(n, v, lightDir, roughness, f0);
-            var lightColor = new Float3(light.Color.X, light.Color.Y, light.Color.Z);
+            var lightColor = Float3.Create(light.Color.X, light.Color.Y, light.Color.Z);
             radiance = Float3.Add(radiance, Float3.Mul(Float3.Add(Float3.Scale(diffuse, ndotl), spec), Float3.Scale(lightColor, light.Intensity)));
         }
 
@@ -261,9 +261,9 @@ internal static class IlgpuPathTracerKernels
         out float t,
         out Float3 normal)
     {
-        var v0 = new Float3(tri.A.X, tri.A.Y, tri.A.Z);
-        var v1 = new Float3(tri.B.X, tri.B.Y, tri.B.Z);
-        var v2 = new Float3(tri.C.X, tri.C.Y, tri.C.Z);
+        var v0 = Float3.Create(tri.A.X, tri.A.Y, tri.A.Z);
+        var v1 = Float3.Create(tri.B.X, tri.B.Y, tri.B.Z);
+        var v2 = Float3.Create(tri.C.X, tri.C.Y, tri.C.Z);
         var edge1 = Float3.Sub(v1, v0);
         var edge2 = Float3.Sub(v2, v0);
         var pvec = Float3.Cross(direction, edge2);
@@ -393,8 +393,8 @@ internal static class IlgpuPathTracerKernels
     private static Float3 SampleSky(Float3 direction)
     {
         var t = TracerMath.Clamp(direction.Y * 0.5f + 0.5f, 0f, 1f);
-        var low = new Float3(40f / 255f, 44f / 255f, 52f / 255f);
-        var high = new Float3(120f / 255f, 168f / 255f, 220f / 255f);
+        var low = Float3.Create(40f / 255f, 44f / 255f, 52f / 255f);
+        var high = Float3.Create(120f / 255f, 168f / 255f, 220f / 255f);
         return Float3.Lerp(low, high, t);
     }
 

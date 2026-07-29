@@ -8,6 +8,10 @@
     <Description>Shared path-tracing demo scenes, async workers, and session helpers for Silk and Raylib samples.</Description>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Novolis.Math.Arrays" />
+    <PackageReference Include="Novolis.Math.Geometry" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\Novolis.Rendering.Backends.Cpu\Novolis.Rendering.Backends.Cpu.csproj" />
     <ProjectReference Include="..\Novolis.Rendering.Backends.Igpu\Novolis.Rendering.Backends.Igpu.csproj" />
     <ProjectReference Include="..\Novolis.Rendering.Backends.Vulkan\Novolis.Rendering.Backends.Vulkan.csproj" />

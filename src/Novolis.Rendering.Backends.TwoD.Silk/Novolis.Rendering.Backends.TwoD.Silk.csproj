@@ -10,6 +10,8 @@
     <PackageTags>rendering;2d;silk;opengl</PackageTags>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Novolis.Math.Geometry" />
+    <PackageReference Include="Novolis.Math.Topology" />
     <PackageReference Include="Silk.NET.GLFW" />
     <PackageReference Include="Silk.NET.Input" />
     <PackageReference Include="Silk.NET.Input.Common" />

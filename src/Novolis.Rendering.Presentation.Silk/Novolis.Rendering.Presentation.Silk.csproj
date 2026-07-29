@@ -8,6 +8,7 @@
     <Description>Silk.NET window host and OpenGL CPU frame presenter.</Description>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Novolis.Math.Geometry" />
     <PackageReference Include="Silk.NET.GLFW" />
     <PackageReference Include="Silk.NET.Input" />
     <PackageReference Include="Silk.NET.Input.Common" />

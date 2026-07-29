@@ -4,6 +4,10 @@ using System.Runtime.CompilerServices;
 namespace Novolis.Rendering.Backends.Igpu;
 
 /// <summary>Plain float3 for ILGPU kernels (no System.Numerics.Vector3 intrinsics).</summary>
+/// <remarks>
+/// Avoid user-defined constructors: ILGPU CUDA compilation can ICE on custom value-type ctors.
+/// Prefer <see cref="Create"/> / object initializers inside kernels.
+/// </remarks>
 public struct Float3
 {
     /// <summary>X component.</summary>
@@ -15,33 +19,39 @@ public struct Float3
     /// <summary>Z component.</summary>
     public float Z;
 
-    /// <summary>Creates a vector from components.</summary>
+    /// <summary>Creates a vector from components (ILGPU-safe; no custom ctor).</summary>
     /// <param name="x">X component.</param>
     /// <param name="y">Y component.</param>
     /// <param name="z">Z component.</param>
-    public Float3(float x, float y, float z)
+    /// <returns>Kernel-friendly float3.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Float3 Create(float x, float y, float z)
     {
-        X = x;
-        Y = y;
-        Z = z;
+        // Field assignment (not a custom ctor / object initializer) — ILGPU CUDA can ICE
+        // on user-defined value-type constructors and some initializer patterns.
+        Float3 v;
+        v.X = x;
+        v.Y = y;
+        v.Z = z;
+        return v;
     }
 
     /// <summary>Zero vector.</summary>
-    public static Float3 Zero => new(0f, 0f, 0f);
+    public static Float3 Zero => Create(0f, 0f, 0f);
 
     /// <summary>Ones vector.</summary>
-    public static Float3 One => new(1f, 1f, 1f);
+    public static Float3 One => Create(1f, 1f, 1f);
 
     /// <summary>Unit X axis.</summary>
-    public static Float3 UnitX => new(1f, 0f, 0f);
+    public static Float3 UnitX => Create(1f, 0f, 0f);
 
     /// <summary>Unit Y axis.</summary>
-    public static Float3 UnitY => new(0f, 1f, 0f);
+    public static Float3 UnitY => Create(0f, 1f, 0f);
 
     /// <summary>Converts from <see cref="Vector3"/>.</summary>
     /// <param name="v">BCL vector.</param>
     /// <returns>Kernel-friendly float3.</returns>
-    public static Float3 From(Vector3 v) => new(v.X, v.Y, v.Z);
+    public static Float3 From(Vector3 v) => Create(v.X, v.Y, v.Z);
 
     /// <summary>Converts to <see cref="Vector3"/>.</summary>
     /// <returns>BCL vector.</returns>
@@ -52,28 +62,28 @@ public struct Float3
     /// <param name="b">Second operand.</param>
     /// <returns><c>a + b</c>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Float3 Add(Float3 a, Float3 b) => new(a.X + b.X, a.Y + b.Y, a.Z + b.Z);
+    public static Float3 Add(Float3 a, Float3 b) => Create(a.X + b.X, a.Y + b.Y, a.Z + b.Z);
 
     /// <summary>Component-wise subtraction.</summary>
     /// <param name="a">Minuend.</param>
     /// <param name="b">Subtrahend.</param>
     /// <returns><c>a - b</c>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Float3 Sub(Float3 a, Float3 b) => new(a.X - b.X, a.Y - b.Y, a.Z - b.Z);
+    public static Float3 Sub(Float3 a, Float3 b) => Create(a.X - b.X, a.Y - b.Y, a.Z - b.Z);
 
     /// <summary>Scalar multiply.</summary>
     /// <param name="a">Vector.</param>
     /// <param name="s">Scalar.</param>
     /// <returns><c>a * s</c>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Float3 Scale(Float3 a, float s) => new(a.X * s, a.Y * s, a.Z * s);
+    public static Float3 Scale(Float3 a, float s) => Create(a.X * s, a.Y * s, a.Z * s);
 
     /// <summary>Component-wise multiply.</summary>
     /// <param name="a">First operand.</param>
     /// <param name="b">Second operand.</param>
     /// <returns>Component-wise product.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Float3 Mul(Float3 a, Float3 b) => new(a.X * b.X, a.Y * b.Y, a.Z * b.Z);
+    public static Float3 Mul(Float3 a, Float3 b) => Create(a.X * b.X, a.Y * b.Y, a.Z * b.Z);
 
     /// <summary>Dot product.</summary>
     /// <param name="a">First operand.</param>
@@ -88,7 +98,7 @@ public struct Float3
     /// <returns><c>cross(a, b)</c>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Float3 Cross(Float3 a, Float3 b) =>
-        new(
+        Create(
             a.Y * b.Z - a.Z * b.Y,
             a.Z * b.X - a.X * b.Z,
             a.X * b.Y - a.Y * b.X);
@@ -112,7 +122,7 @@ public struct Float3
         }
 
         var inv = 1f / len;
-        return new Float3(v.X * inv, v.Y * inv, v.Z * inv);
+        return Create(v.X * inv, v.Y * inv, v.Z * inv);
     }
 
     /// <summary>Reflects a direction about a normal.</summary>
@@ -133,7 +143,7 @@ public struct Float3
     /// <returns><c>lerp(a, b, t)</c>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Float3 Lerp(Float3 a, Float3 b, float t) =>
-        new(
+        Create(
             a.X + (b.X - a.X) * t,
             a.Y + (b.Y - a.Y) * t,
             a.Z + (b.Z - a.Z) * t);
