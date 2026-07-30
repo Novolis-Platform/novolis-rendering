@@ -5,18 +5,35 @@ namespace Novolis.Rendering.Backends.Vulkan;
 
 internal static unsafe class VulkanShaderCompiler
 {
-    private static byte[]? _cachedSpirv;
+    private static byte[]? _cachedPathTraceSpirv;
+    private static byte[]? _cachedWireVertSpirv;
+    private static byte[]? _cachedWireFragSpirv;
 
     public static ReadOnlySpan<byte> GetPathTraceSpirv()
     {
-        if (_cachedSpirv is not null)
-        {
-            return _cachedSpirv;
-        }
+        _cachedPathTraceSpirv ??= Compile(
+            LoadEmbeddedShader("Novolis.Rendering.Backends.Vulkan.Shaders.path_trace.comp"),
+            ShaderKind.ComputeShader,
+            "path_trace.comp");
+        return _cachedPathTraceSpirv;
+    }
 
-        var source = LoadEmbeddedShader("Novolis.Rendering.Backends.Vulkan.Shaders.path_trace.comp");
-        _cachedSpirv = CompileCompute(source);
-        return _cachedSpirv;
+    public static ReadOnlySpan<byte> GetWireVertexSpirv()
+    {
+        _cachedWireVertSpirv ??= Compile(
+            LoadEmbeddedShader("Novolis.Rendering.Backends.Vulkan.Shaders.wire.vert"),
+            ShaderKind.VertexShader,
+            "wire.vert");
+        return _cachedWireVertSpirv;
+    }
+
+    public static ReadOnlySpan<byte> GetWireFragmentSpirv()
+    {
+        _cachedWireFragSpirv ??= Compile(
+            LoadEmbeddedShader("Novolis.Rendering.Backends.Vulkan.Shaders.wire.frag"),
+            ShaderKind.FragmentShader,
+            "wire.frag");
+        return _cachedWireFragSpirv;
     }
 
     private static string LoadEmbeddedShader(string resourceName)
@@ -28,22 +45,18 @@ internal static unsafe class VulkanShaderCompiler
         return reader.ReadToEnd();
     }
 
-    private static byte[] CompileCompute(string source)
+    private static byte[] Compile(string source, ShaderKind kind, string fileName)
     {
         var shaderc = Shaderc.GetApi();
         var compiler = shaderc.CompilerInitialize();
         if (compiler == null)
-        {
             throw new InvalidOperationException("shaderc compiler init failed.");
-        }
 
         try
         {
             var options = shaderc.CompileOptionsInitialize();
             if (options == null)
-            {
                 throw new InvalidOperationException("shaderc options init failed.");
-            }
 
             try
             {
@@ -52,15 +65,13 @@ internal static unsafe class VulkanShaderCompiler
                     compiler,
                     source,
                     (nuint)source.Length,
-                    ShaderKind.ComputeShader,
-                    "path_trace.comp",
+                    kind,
+                    fileName,
                     "main",
                     options);
 
                 if (result == null)
-                {
                     throw new InvalidOperationException("shaderc returned null result.");
-                }
 
                 try
                 {
@@ -68,20 +79,14 @@ internal static unsafe class VulkanShaderCompiler
                     if (status != CompilationStatus.Success)
                     {
                         var message = shaderc.ResultGetErrorMessageS(result) ?? "unknown shader compile error";
-                        throw new InvalidOperationException($"Vulkan shader compile failed: {message}");
+                        throw new InvalidOperationException($"Vulkan shader compile failed ({fileName}): {message}");
                     }
 
                     var bytes = shaderc.ResultGetBytes(result);
                     var length = shaderc.ResultGetLength(result);
                     var spirv = new byte[length];
-                    unsafe
-                    {
-                        fixed (byte* dst = spirv)
-                        {
-                            System.Buffer.MemoryCopy(bytes, dst, length, length);
-                        }
-                    }
-
+                    fixed (byte* dst = spirv)
+                        System.Buffer.MemoryCopy(bytes, dst, length, length);
                     return spirv;
                 }
                 finally

@@ -1,9 +1,10 @@
 using System.Numerics;
-using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
 using Silk.NET.Windowing;
+using Novolis.Rendering.Presentation;
 using Novolis.Rendering.TwoD;
+using SilkInput = Silk.NET.Input;
 
 namespace Novolis.Rendering.Backends.TwoD.Silk;
 
@@ -11,14 +12,14 @@ namespace Novolis.Rendering.Backends.TwoD.Silk;
 public sealed class SilkTwoDGameContext
 {
     private IWindow? _window;
-    private IInputContext? _input;
+    private SilkInput.IInputContext? _input;
     private SilkTwoDRenderer? _renderer;
     private readonly HashSet<Key> _keysDownLastFrame = new();
     private readonly HashSet<Key> _keysPolledThisFrame = new();
     private readonly HashSet<MouseButton> _mouseDownLastFrame = new();
     private readonly HashSet<MouseButton> _mousePolledThisFrame = new();
-    private Vector2D<float> _mousePosition;
-    private Vector2D<float> _mouseDelta;
+    private Vector2 _mousePosition;
+    private Vector2 _mouseDelta;
     private int _width;
     private int _height;
     private float _dt;
@@ -45,12 +46,12 @@ public sealed class SilkTwoDGameContext
     public float DeltaSeconds => _dt;
 
     /// <summary>Cursor position in framebuffer pixels (origin top-left).</summary>
-    public Vector2D<float> MousePosition => _mousePosition;
+    public Vector2 MousePosition => _mousePosition;
 
     /// <summary>Cursor delta since the previous frame in pixels.</summary>
-    public Vector2D<float> MouseDelta => _mouseDelta;
+    public Vector2 MouseDelta => _mouseDelta;
 
-    internal void Bind(IWindow window, SilkTwoDRenderer renderer, IInputContext input, GL gl)
+    internal void Bind(IWindow window, SilkTwoDRenderer renderer, SilkInput.IInputContext input, GL gl)
     {
         _window = window;
         _renderer = renderer;
@@ -71,7 +72,8 @@ public sealed class SilkTwoDGameContext
     public bool IsMouseButtonDown(MouseButton button)
     {
         _mousePolledThisFrame.Add(button);
-        return AnyMouse(m => m.IsButtonPressed(button));
+        var silk = SilkInputMapping.ToSilk(button);
+        return AnyMouse(m => m.IsButtonPressed(silk));
     }
 
     /// <summary>True on the frame the button transitioned to down.</summary>
@@ -96,7 +98,8 @@ public sealed class SilkTwoDGameContext
         }
 
         _keysPolledThisFrame.Add(key);
-        return AnyKeyboard(k => k.IsKeyPressed(key));
+        var silk = SilkInputMapping.ToSilk(key);
+        return AnyKeyboard(k => k.IsKeyPressed(silk));
     }
 
     /// <summary>True on the frame the key transitioned to down.</summary>
@@ -124,7 +127,7 @@ public sealed class SilkTwoDGameContext
         {
             foreach (var key in _keysPolledThisFrame)
             {
-                if (keyboard.IsKeyPressed(key))
+                if (keyboard.IsKeyPressed(SilkInputMapping.ToSilk(key)))
                 {
                     _keysDownLastFrame.Add(key);
                 }
@@ -138,7 +141,7 @@ public sealed class SilkTwoDGameContext
         {
             foreach (var button in _mousePolledThisFrame)
             {
-                if (mouse.IsButtonPressed(button))
+                if (mouse.IsButtonPressed(SilkInputMapping.ToSilk(button)))
                 {
                     _mouseDownLastFrame.Add(button);
                 }
@@ -150,17 +153,17 @@ public sealed class SilkTwoDGameContext
 
     private void PollMouse()
     {
-        _mouseDelta = default;
+        _mouseDelta = Vector2.Zero;
         foreach (var mouse in _input?.Mice ?? [])
         {
             var p = mouse.Position;
-            var pos = new Vector2D<float>(p.X, p.Y);
+            var pos = new Vector2(p.X, p.Y);
             _mouseDelta += pos - _mousePosition;
             _mousePosition = pos;
         }
     }
 
-    private bool AnyKeyboard(Func<IKeyboard, bool> predicate)
+    private bool AnyKeyboard(Func<SilkInput.IKeyboard, bool> predicate)
     {
         foreach (var keyboard in _input?.Keyboards ?? [])
         {
@@ -173,7 +176,7 @@ public sealed class SilkTwoDGameContext
         return false;
     }
 
-    private bool AnyMouse(Func<IMouse, bool> predicate)
+    private bool AnyMouse(Func<SilkInput.IMouse, bool> predicate)
     {
         foreach (var mouse in _input?.Mice ?? [])
         {

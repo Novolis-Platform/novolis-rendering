@@ -6,7 +6,7 @@
     <AssemblyName>Novolis.Rendering.Backends.Vulkan</AssemblyName>
     <PackageId>Novolis.Rendering.Backends.Vulkan</PackageId>
     <IsPackable>true</IsPackable>
-    <Description>Vulkan compute path tracing backend (SPIR-V).</Description>
+    <Description>Vulkan backends: compute path tracing and interactive wireframe graphics (SPIR-V).</Description>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Novolis.Math.Geometry" />
@@ -16,6 +16,8 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Shaders\path_trace.comp" />
+    <EmbeddedResource Include="Shaders\wire.vert" />
+    <EmbeddedResource Include="Shaders\wire.frag" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Novolis.Rendering.Backends.Cpu\Novolis.Rendering.Backends.Cpu.csproj" />

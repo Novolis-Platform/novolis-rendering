@@ -23,7 +23,7 @@ SilkGame.Run("Novolis path trace", 1280, 720, ctx =>
 });
 ```
 
-Mouse orbit, smoothed FPS, and backend hotkeys are used by the **SilkTraceStudio** dogfood app (`Novolis.Rendering.PathTrace.Demos` + `SilkOrbitCamera`).
+Mouse orbit uses `Novolis.Simulation.View.OrbitCameraRig` at the app layer (SilkTraceStudio). This package provides `SilkGame`, frame presenters, and smoothed FPS helpers — not camera rigs.
 
 ## Related packages
 

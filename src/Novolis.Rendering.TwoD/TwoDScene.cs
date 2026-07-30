@@ -13,8 +13,8 @@ public sealed class TwoDScene
     /// <summary>Static collision volumes.</summary>
     public TwoDCollisionWorld Collision { get; } = new();
 
-    /// <summary>Orthographic world camera.</summary>
-    public TwoDCamera Camera { get; } = new();
+    /// <summary>Orthographic world viewport.</summary>
+    public TwoDViewport Camera { get; } = new();
 
     /// <summary>Screen-space HUD.</summary>
     public TwoDHud Hud { get; } = new();

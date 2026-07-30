@@ -3,8 +3,8 @@ using Novolis.Math.Geometry;
 
 namespace Novolis.Rendering.TwoD;
 
-/// <summary>Orthographic camera mapping world XZ to screen pixels.</summary>
-public sealed class TwoDCamera
+/// <summary>Orthographic viewport mapping world XZ to screen pixels.</summary>
+public sealed class TwoDViewport
 {
     /// <summary>World-space center of the view (Y ignored).</summary>
     public Vector3 Position { get; set; }

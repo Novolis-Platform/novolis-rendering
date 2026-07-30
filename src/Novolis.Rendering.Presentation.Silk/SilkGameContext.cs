@@ -1,7 +1,8 @@
 using System.Numerics;
-using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.Windowing;
+using Novolis.Rendering.Presentation;
+using SilkInput = Silk.NET.Input;
 
 namespace Novolis.Rendering.Presentation.Silk;
 
@@ -9,7 +10,7 @@ namespace Novolis.Rendering.Presentation.Silk;
 public sealed class SilkGameContext
 {
     private IWindow? _window;
-    private IInputContext? _input;
+    private SilkInput.IInputContext? _input;
     private SilkOpenGlFramePresenter? _presenter;
     private readonly HashSet<Key> _keysDownLastFrame = new();
     private readonly HashSet<Key> _keysPolledThisFrame = new();
@@ -46,7 +47,7 @@ public sealed class SilkGameContext
     public SilkOpenGlFramePresenter FramePresenter =>
         _presenter ?? throw new InvalidOperationException("Silk presenter is not bound.");
 
-    internal void Bind(IWindow window, SilkOpenGlFramePresenter presenter, IInputContext input)
+    internal void Bind(IWindow window, SilkOpenGlFramePresenter presenter, SilkInput.IInputContext input)
     {
         _window = window;
         _presenter = presenter;
@@ -71,7 +72,7 @@ public sealed class SilkGameContext
     }
 
     /// <summary>Returns whether <paramref name="key"/> is held down.</summary>
-    /// <param name="key">Silk key code.</param>
+    /// <param name="key">Novolis key code.</param>
     /// <returns><see langword="true"/> when any keyboard reports the key pressed.</returns>
     public bool IsKeyDown(Key key)
     {
@@ -81,7 +82,8 @@ public sealed class SilkGameContext
         }
 
         _keysPolledThisFrame.Add(key);
-        return AnyKeyboard(k => k.IsKeyPressed(key));
+        var silk = SilkInputMapping.ToSilk(key);
+        return AnyKeyboard(k => k.IsKeyPressed(silk));
     }
 
     /// <summary>True only on the frame the key transitioned to down (Raylib-style pressed).</summary>
@@ -116,7 +118,8 @@ public sealed class SilkGameContext
     public bool IsMouseButtonDown(MouseButton button)
     {
         _mousePolledThisFrame.Add(button);
-        return AnyMouse(m => m.IsButtonPressed(button));
+        var silk = SilkInputMapping.ToSilk(button);
+        return AnyMouse(m => m.IsButtonPressed(silk));
     }
 
     /// <summary>True only on the frame the mouse button transitioned to down.</summary>
@@ -133,7 +136,7 @@ public sealed class SilkGameContext
         {
             foreach (var key in _keysPolledThisFrame)
             {
-                if (keyboard.IsKeyPressed(key))
+                if (keyboard.IsKeyPressed(SilkInputMapping.ToSilk(key)))
                 {
                     _keysDownLastFrame.Add(key);
                 }
@@ -147,7 +150,7 @@ public sealed class SilkGameContext
         {
             foreach (var button in _mousePolledThisFrame)
             {
-                if (mouse.IsButtonPressed(button))
+                if (mouse.IsButtonPressed(SilkInputMapping.ToSilk(button)))
                 {
                     _mouseDownLastFrame.Add(button);
                 }
@@ -182,7 +185,7 @@ public sealed class SilkGameContext
     private static bool IsSupportedKey(Key key) =>
         key != Key.Unknown && (int)key >= 0;
 
-    private bool AnyKeyboard(Func<IKeyboard, bool> predicate)
+    private bool AnyKeyboard(Func<SilkInput.IKeyboard, bool> predicate)
     {
         foreach (var keyboard in _input?.Keyboards ?? [])
         {
@@ -195,7 +198,7 @@ public sealed class SilkGameContext
         return false;
     }
 
-    private bool AnyMouse(Func<IMouse, bool> predicate)
+    private bool AnyMouse(Func<SilkInput.IMouse, bool> predicate)
     {
         foreach (var mouse in _input?.Mice ?? [])
         {
