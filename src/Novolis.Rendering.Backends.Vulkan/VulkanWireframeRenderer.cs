@@ -206,12 +206,9 @@ public sealed unsafe class VulkanWireframeRenderer : IDisposable
         if (_stagingMapped == null || pixels.Length != _width * _height)
             throw new ArgumentException("Pixel buffer must match Width*Height.", nameof(pixels));
 
-        var src = (byte*)_stagingMapped;
-        for (var i = 0; i < pixels.Length; i++)
-        {
-            var o = i * 4;
-            pixels[i] = new Rgba32(src[o], src[o + 1], src[o + 2], src[o + 3]);
-        }
+        // Staging is tightly packed RGBA8.
+        var src = new ReadOnlySpan<byte>((byte*)_stagingMapped, pixels.Length * 4);
+        src.CopyTo(MemoryMarshal.AsBytes(pixels));
     }
 
     /// <inheritdoc />
