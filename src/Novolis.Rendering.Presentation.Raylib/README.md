@@ -1,6 +1,6 @@
 # Novolis.Rendering.Presentation.Raylib
 
-Raylib texture presenter for uploading CPU RGBA frames to a window.
+Raylib texture presenter that uploads CPU RGBA frames from ray tracing backends and draws them full-screen. The only rendering package that references `Novolis.Raylib`.
 
 ## Install
 
@@ -8,7 +8,7 @@ Raylib texture presenter for uploading CPU RGBA frames to a window.
 dotnet add package Novolis.Rendering.Presentation.Raylib
 ```
 
-**Prerequisites:** [.NET 10 SDK](https://dotnet.microsoft.com/download) (`net10.0`), `Novolis.Raylib` packages.
+**Prerequisites:** [.NET 10 SDK](https://dotnet.microsoft.com/download) (`net10.0`), `Novolis.Raylib.Runtime`, `Novolis.Rendering.Presentation.Abstractions`.
 
 ## Quick start
 
@@ -16,20 +16,46 @@ dotnet add package Novolis.Rendering.Presentation.Raylib
 using Novolis.Rendering.Presentation.Raylib;
 
 using var presenter = new RaylibCpuFramePresenter();
-presenter.PresentCpuFrame(pixels, width, height);
+
+// After backend.RenderAsync(...) and TryGetCpuPixels:
+if (backend.Output.TryGetCpuPixels(out var pixels, out var w, out var h))
+    presenter.PresentCpuFrame(pixels, w, h);
 ```
 
-## Related packages
+The presenter recreates the Raylib texture when dimensions change, flips rows for OpenGL-style origin, and draws at `(0, 0)`. Call `Dispose()` to unload the texture.
 
-| Package | When to use |
-|---------|-------------|
-| `Novolis.Rendering.Presentation.Silk` | Silk.NET host without Raylib |
-| `Novolis.Raylib` | Low-level Raylib bindings |
+## Quick start — with PathTrace.Demos display buffer
+
+```csharp
+var display = new PathTraceDisplayBuffer();
+var lastGen = -1;
+display.TryPresent(presenter, ref lastGen);
+```
+
+## API
+
+| Type | Role |
+|------|------|
+| `RaylibCpuFramePresenter` | `IFramePresenter` + `IDisposable`; uploads and blits CPU RGBA |
+
+## Dogfooding / apps
+
+Pairs with `Novolis.Rendering.PathTrace.Demos` in Raylib path-tracing samples. Raylib owns the window and input loop; this package only blits finished frames.
+
+## Support
+
+Pre-release platform library. This is the only `Novolis.Rendering.*` package that references `Novolis.Raylib`.
+
+## Related
+
+| Package | Role |
+|---------|------|
+| `Novolis.Rendering.Presentation.Abstractions` | `IFramePresenter`, `IRenderOutput` |
+| `Novolis.Rendering.Presentation.Silk` | Silk.NET OpenGL presenter (no Raylib) |
+| `Novolis.Rendering.PathTrace.Demos` | Shared scenes, workers, display buffer |
+| `Novolis.Raylib` | Low-level Raylib bindings and texture helpers |
 
 ## More documentation
 
 - [Getting started](../../docs/getting-started.md)
-
-## Support
-
-Pre-release platform library. Public API is fully documented with strict XML (`CS1591` enforced).
+- [Materials and backends](../../docs/materials-and-backends.md)

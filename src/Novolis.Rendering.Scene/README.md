@@ -1,6 +1,6 @@
 # Novolis.Rendering.Scene
 
-Authoring scene graph: meshes, transforms, lights, and `SceneBuilder` helpers.
+Authoring scene graph for ray tracing: mesh instances with transforms, lights, and fluent `SceneBuilder` helpers for common primitives.
 
 ## Install
 
@@ -8,7 +8,7 @@ Authoring scene graph: meshes, transforms, lights, and `SceneBuilder` helpers.
 dotnet add package Novolis.Rendering.Scene
 ```
 
-**Prerequisites:** [.NET 10 SDK](https://dotnet.microsoft.com/download) (`net10.0`).
+**Prerequisites:** [.NET 10 SDK](https://dotnet.microsoft.com/download) (`net10.0`), `Novolis.Rendering.Materials`.
 
 ## Quick start
 
@@ -17,23 +17,41 @@ using Novolis.Rendering.Materials;
 using Novolis.Rendering.Scene;
 
 var scene = new SceneBuilder()
-    .AddGround(MaterialPresets.Standard(MaterialPresets.Colors.White, 0.9f))
+    .AddGround(MaterialPresets.Standard(MaterialPresets.Colors.White, roughness: 0.9f))
     .AddBox(Vector3.Zero, new Vector3(0.25f), MaterialPresets.Metal(MaterialPresets.Colors.Silver))
-    .AddDirectionalLight(new Vector3(-0.4f, -1f, -0.3f), Vector3.One)
+    .AddDirectionalLight(new Vector3(-0.4f, -1f, -0.3f), Vector3.One, intensity: 1f)
     .Build();
 ```
 
-## Related packages
+`AddMesh(vertices, indices, material, transform)` accepts arbitrary triangle meshes. `AddBox(center, halfExtents, material)` and `AddGround(material, size)` cover common test geometry.
 
-| Package | When to use |
-|---------|-------------|
-| `Novolis.Rendering.Materials` | `IMaterial` models and presets |
+## Quick start — compile and trace
+
+```csharp
+using Novolis.Rendering.Compile;
+
+var compiled = SceneCompiler.Compile(scene);
+await backend.UploadSceneAsync(compiled);
+```
+
+## API
+
+| Type | Role |
+|------|------|
+| `Scene` | Authoring root with `Meshes` and `Lights` collections |
+| `SceneBuilder` | Fluent `AddMesh`, `AddGround`, `AddBox`, `AddDirectionalLight`, `Build` |
+| `MeshInstance` | Vertices, triangle indices, material, transform |
+| `LightDefinition` | Directional/point light with color and intensity |
+| `LightKind` | `Directional`, `Point` |
+
+## Related
+
+| Package | Role |
+|---------|------|
+| `Novolis.Rendering.Materials` | `IMaterial` models attached to meshes |
 | `Novolis.Rendering.Compile` | Compile to `CompiledScene` |
+| `Novolis.Rendering.PathTrace.Demos` | `ShowcaseScenes` built with `SceneBuilder` |
 
 ## More documentation
 
 - [Getting started](../../docs/getting-started.md)
-
-## Support
-
-Pre-release platform library. Public API is fully documented with strict XML (`CS1591` enforced).

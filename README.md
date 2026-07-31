@@ -10,6 +10,7 @@
 | `Novolis.Rendering.Abstractions` | `dotnet add package Novolis.Rendering.Abstractions` | [README](https://github.com/Novolis-Platform/novolis-rendering/blob/main/src/Novolis.Rendering.Abstractions/README.md) |
 | `Novolis.Rendering.Backends.Cpu` | `dotnet add package Novolis.Rendering.Backends.Cpu` | [README](https://github.com/Novolis-Platform/novolis-rendering/blob/main/src/Novolis.Rendering.Backends.Cpu/README.md) |
 | `Novolis.Rendering.Backends.Igpu` | `dotnet add package Novolis.Rendering.Backends.Igpu` | [README](https://github.com/Novolis-Platform/novolis-rendering/blob/main/src/Novolis.Rendering.Backends.Igpu/README.md) |
+| `Novolis.Rendering.Backends.TwoD.Silk` | `dotnet add package Novolis.Rendering.Backends.TwoD.Silk` | [README](https://github.com/Novolis-Platform/novolis-rendering/blob/main/src/Novolis.Rendering.Backends.TwoD.Silk/README.md) |
 | `Novolis.Rendering.Backends.Vulkan` | `dotnet add package Novolis.Rendering.Backends.Vulkan` | [README](https://github.com/Novolis-Platform/novolis-rendering/blob/main/src/Novolis.Rendering.Backends.Vulkan/README.md) |
 | `Novolis.Rendering.Compile` | `dotnet add package Novolis.Rendering.Compile` | [README](https://github.com/Novolis-Platform/novolis-rendering/blob/main/src/Novolis.Rendering.Compile/README.md) |
 | `Novolis.Rendering.DependencyInjection` | `dotnet add package Novolis.Rendering.DependencyInjection` | [README](https://github.com/Novolis-Platform/novolis-rendering/blob/main/src/Novolis.Rendering.DependencyInjection/README.md) |
@@ -21,6 +22,7 @@
 | `Novolis.Rendering.Runtime` | `dotnet add package Novolis.Rendering.Runtime` | [README](https://github.com/Novolis-Platform/novolis-rendering/blob/main/src/Novolis.Rendering.Runtime/README.md) |
 | `Novolis.Rendering.Scene` | `dotnet add package Novolis.Rendering.Scene` | [README](https://github.com/Novolis-Platform/novolis-rendering/blob/main/src/Novolis.Rendering.Scene/README.md) |
 | `Novolis.Rendering.Testing` | `dotnet add package Novolis.Rendering.Testing` | [README](https://github.com/Novolis-Platform/novolis-rendering/blob/main/src/Novolis.Rendering.Testing/README.md) |
+| `Novolis.Rendering.TwoD` | `dotnet add package Novolis.Rendering.TwoD` | [README](https://github.com/Novolis-Platform/novolis-rendering/blob/main/src/Novolis.Rendering.TwoD/README.md) |
 
 For NuGet.org and Visual Studio, the **embedded** README.md inside each package is authoritative.
 
@@ -54,8 +56,12 @@ Scene + IMaterial  →  SceneCompiler  →  CompiledScene
 | `Novolis.Rendering.Backends.Igpu` | ILGPU GPU path tracer (CPU fallback when no GPU or `deterministic: true`) |
 | `Novolis.Rendering.Backends.Vulkan` | Vulkan compute path tracing (SPIR-V) |
 | `Novolis.Rendering.DependencyInjection` | `AddRayTracing()`, `UseCpuBackend()` |
+| `Novolis.Rendering.PathTrace.Demos` | Shared demo scenes, workers, display buffer |
 | `Novolis.Rendering.Presentation.Silk` | Silk.NET window + OpenGL CPU presenter |
 | `Novolis.Rendering.Presentation.Raylib` | Raylib CPU frame presenter |
+| `Novolis.Rendering.Testing` | Golden framebuffer SHA-256 helpers |
+| `Novolis.Rendering.TwoD` | Host-neutral 2D platformer scene model |
+| `Novolis.Rendering.Backends.TwoD.Silk` | Silk.NET OpenGL 2D renderer + game loop |
 | `Novolis.Rendering` | Meta package referencing the stack |
 
 Normative API: [docs/materials-and-backends.md](docs/materials-and-backends.md). Roadmap: [docs/roadmap-raytracing.md](docs/roadmap-raytracing.md).

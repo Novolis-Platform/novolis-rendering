@@ -1,6 +1,6 @@
 # Novolis.Rendering.Presentation.Silk
 
-Silk.NET window loop and OpenGL presenters for path-tracing demos.
+Silk.NET window loop and OpenGL presenters for path-tracing demos — uploads CPU RGBA frames from backends and optional status-strip HUD.
 
 ## Install
 
@@ -8,7 +8,7 @@ Silk.NET window loop and OpenGL presenters for path-tracing demos.
 dotnet add package Novolis.Rendering.Presentation.Silk
 ```
 
-**Prerequisites:** [.NET 10 SDK](https://dotnet.microsoft.com/download) (`net10.0`), OpenGL 3.3+.
+**Prerequisites:** [.NET 10 SDK](https://dotnet.microsoft.com/download) (`net10.0`), OpenGL 3.3+, Silk.NET windowing/input.
 
 ## Quick start
 
@@ -17,26 +17,46 @@ using Novolis.Rendering.Presentation.Silk;
 
 SilkGame.Run("Novolis path trace", 1280, 720, ctx =>
 {
-    ctx.FramePresenter.PresentCpuFrame(pixels, ctx.Width, ctx.Height);
-    ctx.FramePresenter.ShowStatusStrip = true; // optional HUD bar
-    ctx.SetTitle($"Samples: {sampleCount}");
+    if (backend.Output.TryGetCpuPixels(out var pixels, out var w, out var h))
+        ctx.FramePresenter.PresentCpuFrame(pixels, ctx.Width, ctx.Height);
+
+    ctx.FramePresenter.ShowStatusStrip = true;
+    ctx.SetTitle($"Samples: {backend.SampleCount}");
 });
 ```
 
-Mouse orbit uses `Novolis.Simulation.View.OrbitCameraRig` at the app layer (SilkTraceStudio). This package provides `SilkGame`, frame presenters, and smoothed FPS helpers — not camera rigs.
+Mouse orbit uses `Novolis.Simulation.View.OrbitCameraRig` at the app layer (e.g. SilkTraceStudio). This package provides the window loop, OpenGL presenter, and FPS helper — not camera rigs.
 
-## Related packages
+## Quick start — headless pixel sink
 
-| Package | When to use |
-|---------|-------------|
-| `Novolis.Rendering.Presentation.Abstractions` | `IFramePresenter` contract |
-| `Novolis.Rendering.PathTrace.Demos` | Shared scenes, workers, session for Silk/Raylib samples |
+```csharp
+IFramePresenter sink = new SilkCpuFramePresenter((pixels, w, h) => { /* test hook */ });
+```
+
+## API
+
+| Type | Role |
+|------|------|
+| `SilkGame` | GLFW window loop with initialize/update callbacks |
+| `SilkGameContext` | Frame size, delta time, input, `FramePresenter`, title |
+| `SilkOpenGlFramePresenter` | OpenGL texture upload + full-screen quad |
+| `SilkCpuFramePresenter` | Delegates `PresentCpuFrame` to a callback |
+| `SilkOpenGlStatusStrip` | Optional bottom status bar drawing |
+| `SilkSmoothedFps` | Exponential moving average FPS |
+
+## Dogfooding / apps
+
+Used by Silk path-tracing samples with `Novolis.Rendering.PathTrace.Demos` for scenes, workers, and display buffers.
+
+## Related
+
+| Package | Role |
+|---------|------|
+| `Novolis.Rendering.Presentation.Abstractions` | `IFramePresenter`, `Key`, `MouseButton` |
+| `Novolis.Rendering.PathTrace.Demos` | Shared scenes, session, background worker |
 | `Novolis.Rendering.Presentation.Raylib` | Raylib-based presenter instead |
+| `Novolis.Rendering.Backends.TwoD.Silk` | Separate 2D platformer stack |
 
 ## More documentation
 
 - [Getting started](../../docs/getting-started.md)
-
-## Support
-
-Pre-release platform library. Public API is fully documented with strict XML (`CS1591` enforced).
