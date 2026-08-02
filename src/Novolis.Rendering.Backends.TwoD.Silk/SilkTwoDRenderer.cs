@@ -76,6 +76,11 @@ public sealed class SilkTwoDRenderer : ITwoDRenderer
         _gl.Viewport(0, 0, (uint)_viewportWidth, (uint)_viewportHeight);
         _gl.ClearColor(clear.R / 255f, clear.G / 255f, clear.B / 255f, clear.A / 255f);
         _gl.Clear(ClearBufferMask.ColorBufferBit);
+        // Avalonia leaves GL state dirty; force a known 2D configuration.
+        _gl.Disable(EnableCap.CullFace);
+        _gl.Disable(EnableCap.DepthTest);
+        _gl.Disable(EnableCap.ScissorTest);
+        _gl.FrontFace(FrontFaceDirection.Ccw);
         _gl.Enable(EnableCap.Blend);
         _gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
 
@@ -417,10 +422,11 @@ public sealed class SilkTwoDRenderer : ITwoDRenderer
         float b,
         float a)
     {
+        // p0=TL,p1=TR,p2=BL,p3=BR (Y-down). OrthoOffCenter(0,w,h,0) flips Y → CCW-in-NDC is TL-BL-TR / TR-BL-BR.
         batch.Add(new SpriteVertex(p0.X, p0.Y, u0, v0, r, g, b, a));
-        batch.Add(new SpriteVertex(p1.X, p1.Y, u1, v1, r, g, b, a));
         batch.Add(new SpriteVertex(p2.X, p2.Y, u2, v2, r, g, b, a));
-        batch.Add(new SpriteVertex(p0.X, p0.Y, u0, v0, r, g, b, a));
+        batch.Add(new SpriteVertex(p1.X, p1.Y, u1, v1, r, g, b, a));
+        batch.Add(new SpriteVertex(p1.X, p1.Y, u1, v1, r, g, b, a));
         batch.Add(new SpriteVertex(p2.X, p2.Y, u2, v2, r, g, b, a));
         batch.Add(new SpriteVertex(p3.X, p3.Y, u3, v3, r, g, b, a));
     }
