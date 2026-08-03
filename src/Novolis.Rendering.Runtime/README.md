@@ -1,3 +1,11 @@
+<!-- novolis-pkg-brand:start -->
+<p align="center">
+  <a href="https://github.com/Novolis-Platform/novolis-rendering">
+    <img src="https://raw.githubusercontent.com/Novolis-Platform/.github/main/brand/logo-icon.svg" width="72" alt="Novolis"/>
+  </a>
+</p>
+<!-- novolis-pkg-brand:end -->
+
 # Novolis.Rendering.Runtime
 
 Flat runtime scene data and the `IRayTracingBackend` contract shared by CPU, ILGPU, and Vulkan path tracers. Host-neutral — no window or GPU draw calls.
@@ -61,3 +69,4 @@ var dir = CameraSnapshotViewBasis.PrimaryRayDirection(in camera, u: 0.5f, v: 0.5
 
 - [Getting started](../../docs/getting-started.md)
 - [Roadmap: ray tracing](../../docs/roadmap-raytracing.md)
+

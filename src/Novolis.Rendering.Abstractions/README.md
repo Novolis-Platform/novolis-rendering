@@ -1,3 +1,11 @@
+<!-- novolis-pkg-brand:start -->
+<p align="center">
+  <a href="https://github.com/Novolis-Platform/novolis-rendering">
+    <img src="https://raw.githubusercontent.com/Novolis-Platform/.github/main/brand/logo-icon.svg" width="72" alt="Novolis"/>
+  </a>
+</p>
+<!-- novolis-pkg-brand:end -->
+
 # Novolis.Rendering.Abstractions
 
 Legacy bootstrap types and a host-neutral CPU RGBA framebuffer. New code should prefer `Novolis.Rendering.Scene` for scenes and `Novolis.Rendering.Presentation.Abstractions` for output contracts.
@@ -57,3 +65,4 @@ Depends on `Novolis.Math.Geometry` for `Rgba32` and buffer types.
 - [Getting started](../../docs/getting-started.md)
 - [Design](../../docs/design.md)
 - [Materials and backends](../../docs/materials-and-backends.md)
+

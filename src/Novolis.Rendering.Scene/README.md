@@ -1,3 +1,11 @@
+<!-- novolis-pkg-brand:start -->
+<p align="center">
+  <a href="https://github.com/Novolis-Platform/novolis-rendering">
+    <img src="https://raw.githubusercontent.com/Novolis-Platform/.github/main/brand/logo-icon.svg" width="72" alt="Novolis"/>
+  </a>
+</p>
+<!-- novolis-pkg-brand:end -->
+
 # Novolis.Rendering.Scene
 
 Authoring scene graph for ray tracing: mesh instances with transforms, lights, and fluent `SceneBuilder` helpers for common primitives.
@@ -55,3 +63,4 @@ await backend.UploadSceneAsync(compiled);
 ## More documentation
 
 - [Getting started](../../docs/getting-started.md)
+

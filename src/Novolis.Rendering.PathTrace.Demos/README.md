@@ -1,3 +1,11 @@
+<!-- novolis-pkg-brand:start -->
+<p align="center">
+  <a href="https://github.com/Novolis-Platform/novolis-rendering">
+    <img src="https://raw.githubusercontent.com/Novolis-Platform/.github/main/brand/logo-icon.svg" width="72" alt="Novolis"/>
+  </a>
+</p>
+<!-- novolis-pkg-brand:end -->
+
 # Novolis.Rendering.PathTrace.Demos
 
 Shared path-tracing demo infrastructure: prebuilt showcase scenes, backend selection, session lifecycle, background sample workers, and a thread-safe display buffer for Silk and Raylib dogfood apps.
@@ -81,3 +89,4 @@ Used by Silk and Raylib path-tracing samples (`SilkTraceStudio`, `RaytraceHello`
 | `Novolis.Rendering.Presentation.Raylib` | Raylib CPU frame presenter |
 | `Novolis.Rendering.DependencyInjection` | `AddRayTracingFromEnvironment()` |
 | `Novolis.Rendering.Runtime` | `IRayTracingBackend`, `CameraSnapshot`, `CompiledScene` |
+

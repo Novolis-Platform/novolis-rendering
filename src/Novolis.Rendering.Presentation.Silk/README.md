@@ -1,3 +1,11 @@
+<!-- novolis-pkg-brand:start -->
+<p align="center">
+  <a href="https://github.com/Novolis-Platform/novolis-rendering">
+    <img src="https://raw.githubusercontent.com/Novolis-Platform/.github/main/brand/logo-icon.svg" width="72" alt="Novolis"/>
+  </a>
+</p>
+<!-- novolis-pkg-brand:end -->
+
 # Novolis.Rendering.Presentation.Silk
 
 Silk.NET window loop and OpenGL presenters for path-tracing demos — uploads CPU RGBA frames from backends and optional status-strip HUD.
@@ -60,3 +68,4 @@ Used by Silk path-tracing samples with `Novolis.Rendering.PathTrace.Demos` for s
 ## More documentation
 
 - [Getting started](../../docs/getting-started.md)
+

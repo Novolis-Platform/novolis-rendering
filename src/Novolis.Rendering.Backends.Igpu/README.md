@@ -1,3 +1,11 @@
+<!-- novolis-pkg-brand:start -->
+<p align="center">
+  <a href="https://github.com/Novolis-Platform/novolis-rendering">
+    <img src="https://raw.githubusercontent.com/Novolis-Platform/.github/main/brand/logo-icon.svg" width="72" alt="Novolis"/>
+  </a>
+</p>
+<!-- novolis-pkg-brand:end -->
+
 # Novolis.Rendering.Backends.Igpu
 
 ILGPU compute path tracing with automatic CPU fallback when no suitable GPU is present or when deterministic mode is requested.
@@ -58,3 +66,4 @@ Set `NOVOLIS_ILGPU_DEVICE` to pin a specific accelerator when multiple are prese
 
 - [Roadmap: ray tracing](../../docs/roadmap-raytracing.md)
 - [Materials and backends](../../docs/materials-and-backends.md)
+

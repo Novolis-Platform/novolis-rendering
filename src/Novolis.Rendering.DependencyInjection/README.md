@@ -1,3 +1,11 @@
+<!-- novolis-pkg-brand:start -->
+<p align="center">
+  <a href="https://github.com/Novolis-Platform/novolis-rendering">
+    <img src="https://raw.githubusercontent.com/Novolis-Platform/.github/main/brand/logo-icon.svg" width="72" alt="Novolis"/>
+  </a>
+</p>
+<!-- novolis-pkg-brand:end -->
+
 # Novolis.Rendering.DependencyInjection
 
 Microsoft.Extensions.DependencyInjection registration for scene compilation and ray tracing backends (CPU, ILGPU, Vulkan).
@@ -57,3 +65,4 @@ Only one `IRayTracingBackend` registration should be active per service collecti
 
 - [Getting started](../../docs/getting-started.md)
 - [Materials and backends](../../docs/materials-and-backends.md)
+

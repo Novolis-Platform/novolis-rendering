@@ -1,3 +1,11 @@
+<!-- novolis-pkg-brand:start -->
+<p align="center">
+  <a href="https://github.com/Novolis-Platform/novolis-rendering">
+    <img src="https://raw.githubusercontent.com/Novolis-Platform/.github/main/brand/logo-icon.svg" width="72" alt="Novolis"/>
+  </a>
+</p>
+<!-- novolis-pkg-brand:end -->
+
 # Novolis.Rendering.Backends.Vulkan
 
 Vulkan compute path tracing (SPIR-V kernels) with CPU-readable output via staging buffers when a Vulkan 1.2+ runtime is available.
@@ -60,3 +68,4 @@ Pre-release platform library. Requires a working Vulkan loader; CPU readback use
 ## More documentation
 
 - [Roadmap: ray tracing](../../docs/roadmap-raytracing.md)
+

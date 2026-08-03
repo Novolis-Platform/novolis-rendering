@@ -1,3 +1,11 @@
+<!-- novolis-pkg-brand:start -->
+<p align="center">
+  <a href="https://github.com/Novolis-Platform/novolis-rendering">
+    <img src="https://raw.githubusercontent.com/Novolis-Platform/.github/main/brand/logo-icon.svg" width="72" alt="Novolis"/>
+  </a>
+</p>
+<!-- novolis-pkg-brand:end -->
+
 # Novolis.Rendering.Backends.TwoD.Silk
 
 Silk.NET OpenGL backend and game loop for `Novolis.Rendering.TwoD` — orthographic platformer rendering, PNG loading, HUD/menus, and optional framebuffer capture.
@@ -68,3 +76,4 @@ SilkTwoDGame.Run("Capture", 800, 600, initialize: null, update: ctx => { }, rend
 |---------|------|
 | `Novolis.Rendering.TwoD` | Host-neutral 2D scene, collision, HUD, menus |
 | `Novolis.Rendering.Presentation.Silk` | Silk window for path-tracing demos (separate stack) |
+

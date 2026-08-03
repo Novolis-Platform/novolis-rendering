@@ -1,3 +1,11 @@
+<!-- novolis-pkg-brand:start -->
+<p align="center">
+  <a href="https://github.com/Novolis-Platform/novolis-rendering">
+    <img src="https://raw.githubusercontent.com/Novolis-Platform/.github/main/brand/logo-icon.svg" width="72" alt="Novolis"/>
+  </a>
+</p>
+<!-- novolis-pkg-brand:end -->
+
 # Novolis.Rendering
 
 Meta-package composing the core ray tracing stack: abstractions, scene, materials, compile, CPU backend, and dependency injection. GPU backends and window presenters are separate packages.
@@ -69,3 +77,4 @@ This package has no unique public types. See included packages:
 - [Getting started](../../docs/getting-started.md)
 - [Design](../../docs/design.md)
 - [Release](../../docs/release.md)
+

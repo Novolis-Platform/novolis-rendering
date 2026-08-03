@@ -1,3 +1,11 @@
+<!-- novolis-pkg-brand:start -->
+<p align="center">
+  <a href="https://github.com/Novolis-Platform/novolis-rendering">
+    <img src="https://raw.githubusercontent.com/Novolis-Platform/.github/main/brand/logo-icon.svg" width="72" alt="Novolis"/>
+  </a>
+</p>
+<!-- novolis-pkg-brand:end -->
+
 # Novolis.Rendering.Testing
 
 Golden framebuffer hashing helpers for headless render tests — SHA-256 digests over raw RGBA bytes with no native window required.
@@ -63,3 +71,4 @@ No image decoding — hashes raw RGBA bytes only.
 ## More documentation
 
 - [Getting started](../../docs/getting-started.md)
+

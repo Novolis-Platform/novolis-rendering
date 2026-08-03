@@ -1,3 +1,11 @@
+<!-- novolis-pkg-brand:start -->
+<p align="center">
+  <a href="https://github.com/Novolis-Platform/novolis-rendering">
+    <img src="https://raw.githubusercontent.com/Novolis-Platform/.github/main/brand/logo-icon.svg" width="72" alt="Novolis"/>
+  </a>
+</p>
+<!-- novolis-pkg-brand:end -->
+
 # Novolis.Rendering.Compile
 
 Compiles authoring `Scene` graphs into flat `CompiledScene` structures: world-space triangles, deduplicated `GpuMaterial` tables, lights, and a binary BVH for ray tracing backends.
@@ -57,3 +65,4 @@ Transforms mesh instances and deduplicates materials by reference equality.
 - [Getting started](../../docs/getting-started.md)
 - [Materials and backends](../../docs/materials-and-backends.md)
 - [Roadmap: ray tracing](../../docs/roadmap-raytracing.md)
+

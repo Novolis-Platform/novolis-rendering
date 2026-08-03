@@ -1,3 +1,11 @@
+<!-- novolis-pkg-brand:start -->
+<p align="center">
+  <a href="https://github.com/Novolis-Platform/novolis-rendering">
+    <img src="https://raw.githubusercontent.com/Novolis-Platform/.github/main/brand/logo-icon.svg" width="72" alt="Novolis"/>
+  </a>
+</p>
+<!-- novolis-pkg-brand:end -->
+
 # Novolis.Rendering.TwoD
 
 Host-neutral 2D scene model for orthographic platformers (Mario-style): backgrounds, sprite animation, static polygons with colliders, HUD, and menus.
@@ -72,3 +80,4 @@ Layers: `Background`, `World`, `Foreground`, `Hud`, `Menu`, plus `Composited` in
 - World space uses BCL `Vector3` on the **XZ plane** (Y = 0).
 - Screen-space HUD/menu uses pixel coordinates (origin top-left).
 - Textures are registered in `TwoDTextureRegistry`; PNG loading is provided by the Silk backend.
+

@@ -1,3 +1,11 @@
+<!-- novolis-pkg-brand:start -->
+<p align="center">
+  <a href="https://github.com/Novolis-Platform/novolis-rendering">
+    <img src="https://raw.githubusercontent.com/Novolis-Platform/.github/main/brand/logo-icon.svg" width="72" alt="Novolis"/>
+  </a>
+</p>
+<!-- novolis-pkg-brand:end -->
+
 # Novolis.Rendering.Presentation.Abstractions
 
 Host-neutral presentation contracts between ray tracing backends and window hosts: CPU pixel output, optional GPU surfaces, and frame presenters.
@@ -55,3 +63,4 @@ Backends implement `IRenderOutput`; presenters consume CPU pixels or GPU surface
 
 - [Getting started](../../docs/getting-started.md)
 - [Design](../../docs/design.md)
+

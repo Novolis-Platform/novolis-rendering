@@ -1,3 +1,11 @@
+<!-- novolis-pkg-brand:start -->
+<p align="center">
+  <a href="https://github.com/Novolis-Platform/novolis-rendering">
+    <img src="https://raw.githubusercontent.com/Novolis-Platform/.github/main/brand/logo-icon.svg" width="72" alt="Novolis"/>
+  </a>
+</p>
+<!-- novolis-pkg-brand:end -->
+
 # Novolis.Rendering.Presentation.Raylib
 
 Raylib texture presenter that uploads CPU RGBA frames from ray tracing backends and draws them full-screen. The only rendering package that references `Novolis.Raylib`.
@@ -59,3 +67,4 @@ Pre-release platform library. This is the only `Novolis.Rendering.*` package tha
 
 - [Getting started](../../docs/getting-started.md)
 - [Materials and backends](../../docs/materials-and-backends.md)
+
