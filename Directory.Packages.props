@@ -9,6 +9,7 @@
     <PackageVersion Include="Novolis.Math.Geometry" Version="2026.1.*" />
     <PackageVersion Include="Novolis.Analyzers.StackBoundaries" Version="2026.1.*" />
     <PackageVersion Include="Novolis.Math.Topology" Version="2026.1.*" />
+    <PackageVersion Include="Novolis.Raylib.Bindings" Version="2026.1.*" />
     <PackageVersion Include="Novolis.Raylib.Runtime" Version="2026.1.*" />
     <PackageVersion Include="Silk.NET.GLFW" Version="2.22.0" />
     <PackageVersion Include="Silk.NET.Input" Version="2.22.0" />

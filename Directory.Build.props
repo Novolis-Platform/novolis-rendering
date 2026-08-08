@@ -28,7 +28,7 @@
 
   <PropertyGroup Condition="$(MSBuildProjectDirectory.Contains('\tests\')) Or $(MSBuildProjectDirectory.Contains('/tests/'))">
     <IsTestProject Condition="'$(IsTestProject)' == ''">true</IsTestProject>
-    <TestingPlatformCommandLineArguments>--maximum-parallel-tests 1</TestingPlatformCommandLineArguments>
+    <!-- Parallel by default; use NotInParallel only for shared process state. -->
   </PropertyGroup>
 
   <PropertyGroup Label="NuGet / SourceLink">
