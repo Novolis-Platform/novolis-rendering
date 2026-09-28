@@ -8,7 +8,7 @@
     <Description>CPU path tracing backend with progressive accumulation.</Description>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Novolis.Math.Geometry" />
+    <LibraryReference Include="Novolis.Math.Geometry" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Novolis.Rendering.Abstractions\Novolis.Rendering.Abstractions.csproj" />

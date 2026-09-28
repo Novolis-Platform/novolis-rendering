@@ -8,7 +8,7 @@
     <Description>Authoring scene graph for ray tracing.</Description>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Novolis.Math.Geometry" />
+    <LibraryReference Include="Novolis.Math.Geometry" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Novolis.Rendering.Materials\Novolis.Rendering.Materials.csproj" />

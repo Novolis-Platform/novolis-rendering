@@ -8,7 +8,7 @@
     <Description>Host-neutral presentation contracts for CPU and GPU frame output.</Description>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Novolis.Math.Geometry" />
+    <LibraryReference Include="Novolis.Math.Geometry" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Novolis.Rendering.Abstractions\Novolis.Rendering.Abstractions.csproj" />
