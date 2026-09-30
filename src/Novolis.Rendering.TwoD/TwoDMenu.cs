@@ -51,34 +51,3 @@ public sealed class TwoDMenuStack
         return screen.Items[screen.FocusIndex].OnSelect?.Invoke();
     }
 }
-
-/// <summary>Single menu screen with a title and selectable items.</summary>
-public sealed class TwoDMenuScreen
-{
-    /// <summary>Creates a menu screen.</summary>
-    /// <param name="title">Heading text.</param>
-    /// <param name="items">Selectable rows.</param>
-    public TwoDMenuScreen(string title, IReadOnlyList<TwoDMenuItem> items)
-    {
-        Title = title;
-        Items = items;
-    }
-
-    /// <summary>Screen heading.</summary>
-    public string Title { get; }
-
-    /// <summary>Menu rows.</summary>
-    public IReadOnlyList<TwoDMenuItem> Items { get; }
-
-    /// <summary>Index of the focused item.</summary>
-    public int FocusIndex { get; set; }
-
-    /// <summary>Dim overlay behind the menu.</summary>
-    public bool DimBackground { get; set; } = true;
-}
-
-/// <summary>One selectable menu row.</summary>
-/// <param name="Label">Display label.</param>
-/// <param name="Tag">Optional tag returned from <see cref="OnSelect"/>.</param>
-/// <param name="OnSelect">Action when confirmed.</param>
-public sealed record class TwoDMenuItem(string Label, object? Tag = null, Func<object?>? OnSelect = null);
