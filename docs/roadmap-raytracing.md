@@ -146,7 +146,7 @@ public interface IRenderGpuSurface
 ### 1c — `Novolis.Silk.Presentation`
 
 - Same contract as 1b; Silk.NET OpenGL or Vulkan swapchain blit.
-- Repo choice: `novolis-silk` (preferred long-term) or `Novolis.Rendering.Presentation.Silk` until silk host exists.
+- Repo choice: `novolis-silk`.
 
 ### 1d — Dogfood sample `RaytraceHello`
 

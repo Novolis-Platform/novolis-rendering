@@ -65,7 +65,7 @@ This package has no unique public types. See included packages:
 |---------|------|
 | `Novolis.Rendering.Backends.Igpu` | GPU compute (not in meta-package) |
 | `Novolis.Rendering.Backends.Vulkan` | Vulkan compute (not in meta-package) |
-| `Novolis.Rendering.Presentation.Silk` | Windowed Silk demos |
+| `Novolis.Silk` | Windowed GLFW/OpenGL host (separate repo) |
 | `Novolis.Rendering.Presentation.Raylib` | Raylib presenter |
 | `Novolis.Rendering.PathTrace.Demos` | Shared demo scenes and workers |
 | `Novolis.Rendering.TwoD` | Separate 2D platformer scene model |

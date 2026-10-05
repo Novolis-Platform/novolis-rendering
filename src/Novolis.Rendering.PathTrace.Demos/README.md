@@ -83,7 +83,7 @@ Used by Silk and Raylib path-tracing samples (`SilkTraceStudio`, `RaytraceHello`
 
 | Package | Role |
 |---------|------|
-| `Novolis.Rendering.Presentation.Silk` | Silk window + OpenGL presenter |
+| `Novolis.Silk` | GLFW window + OpenGL blit (`novolis-silk`) |
 | `Novolis.Rendering.Presentation.Raylib` | Raylib CPU frame presenter |
 | `Novolis.Rendering.DependencyInjection` | `AddRayTracingFromEnvironment()` |
 | `Novolis.Rendering.Runtime` | `IRayTracingBackend`, `CameraSnapshot`, `CompiledScene` |

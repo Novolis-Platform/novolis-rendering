@@ -1,7 +1,7 @@
 namespace Novolis.Rendering.Presentation;
 
 /// <summary>
-/// Mouse buttons for Silk/OpenGL hosts. Numeric values match Silk.NET.Input.MouseButton.
+/// Mouse buttons for presentation hosts.
 /// </summary>
 public enum MouseButton
 {

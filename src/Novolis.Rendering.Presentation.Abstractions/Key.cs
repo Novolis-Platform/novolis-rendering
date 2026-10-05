@@ -1,8 +1,7 @@
 namespace Novolis.Rendering.Presentation;
 
 /// <summary>
-/// Keyboard keys for Silk/OpenGL hosts. Numeric values match Silk.NET.Input.Key
-/// so backends can cast without a lookup table.
+/// Keyboard keys for presentation hosts.
 /// </summary>
 public enum Key
 {

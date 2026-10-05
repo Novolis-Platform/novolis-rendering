@@ -57,7 +57,7 @@ Pre-release platform library. This is the only `Novolis.Rendering.*` package tha
 | Package | Role |
 |---------|------|
 | `Novolis.Rendering.Presentation.Abstractions` | `IFramePresenter`, `IRenderOutput` |
-| `Novolis.Rendering.Presentation.Silk` | Silk.NET OpenGL presenter (no Raylib) |
+| `Novolis.Silk` | GLFW/OpenGL presenter (no Raylib; `novolis-silk`) |
 | `Novolis.Rendering.PathTrace.Demos` | Shared scenes, workers, display buffer |
 | `Novolis.Raylib` | Low-level Raylib bindings and texture helpers |
 

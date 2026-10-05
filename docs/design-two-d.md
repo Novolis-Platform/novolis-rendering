@@ -6,8 +6,8 @@ Orthographic 2D renderer for platformers (Mario-style): backgrounds, sprite anim
 
 | Package | Role |
 |---------|------|
-| `Novolis.Rendering.TwoD` | Host-neutral scene, collision, HUD, menus |
-| `Novolis.Rendering.Backends.TwoD.Silk` | Silk.NET OpenGL draw + window loop + PNG load |
+| `Novolis.Rendering.TwoD` | Host-neutral scene, collision, HUD, menus, tessellate, PNG load |
+| `Novolis.Silk` | GLFW/OpenGL submit of tessellated quads (`novolis-silk`) |
 
 Path tracing packages (`Novolis.Rendering.Runtime`, `Backends.Cpu`, etc.) stay separate. Apps can use both stacks if needed.
 
@@ -21,12 +21,12 @@ Path tracing packages (`Novolis.Rendering.Runtime`, `Backends.Cpu`, etc.) stay s
 
 | Feature | API |
 |---------|-----|
-| Background image | `TwoDScenePrimitives.AddBackground` + `SilkTwoDPngLoader` |
+| Background image | `TwoDScenePrimitives.AddBackground` + `TwoDPngLoader` |
 | Character animation | `TwoDAnimatedSprite` + `TwoDAnimationClip.FromRow` |
 | Platforms / blocks | `TwoDScene.AddPlatform` or `TwoDStaticPolygon` |
 | Collision | `TwoDCollisionWorld.MoveCircle` |
 | HUD | `TwoDHud.AddText` / `AddSprite` |
-| Menus | `TwoDMenuStack.Push` + `SilkTwoDGame` menu keys |
+| Menus | `TwoDMenuStack.Push` + `SilkGame` menu keys |
 
 ## Layered grid export
 

@@ -41,7 +41,7 @@ Progressive rendering: accumulate samples; display = average.
 
 ## Presentation (separate packages)
 
-`IFramePresenter.PresentCpuFrame(ReadOnlySpan<Rgba32>, width, height)` — implemented in `Novolis.Rendering.Presentation.Raylib` or `Novolis.Rendering.Presentation.Silk`. **No scene types in host presenter packages.**
+`IFramePresenter.PresentCpuFrame(ReadOnlySpan<Rgba32>, width, height)` — implemented in `Novolis.Rendering.Presentation.Raylib` or a `Novolis.Silk` compose host. **No scene types in host presenter packages.**
 
 ## Boundaries
 

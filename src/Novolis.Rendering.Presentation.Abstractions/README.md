@@ -32,7 +32,7 @@ if (output.TryGetCpuPixels(out var pixels, out var w, out var h))
 var renderOutput = new ImageBufferRenderOutput { Buffer = new ImageBuffer(640, 480) };
 ```
 
-Implement `IFramePresenter` in Raylib or Silk packages; implement `IGpuFramePresenter` when importing native GPU handles.
+Implement `IFramePresenter` in Raylib or a Silk compose host; implement `IGpuFramePresenter` when importing native GPU handles.
 
 ## API
 
@@ -44,7 +44,7 @@ Implement `IFramePresenter` in Raylib or Silk packages; implement `IGpuFramePres
 | `ICpuBackedGpuSurface` | GPU surface readable via CPU staging copy |
 | `IGpuFramePresenter` | `PresentGpuFrame` for native handles |
 | `ImageBufferRenderOutput` | `IRenderOutput` over `ImageBuffer` |
-| `Key` / `MouseButton` | Shared input enums for Silk hosts |
+| `Key` / `MouseButton` | Shared input enums for presentation hosts |
 
 Backends implement `IRenderOutput`; presenters consume CPU pixels or GPU surfaces without referencing specific backends.
 
@@ -52,7 +52,7 @@ Backends implement `IRenderOutput`; presenters consume CPU pixels or GPU surface
 
 | Package | Role |
 |---------|------|
-| `Novolis.Rendering.Presentation.Silk` | Silk.NET OpenGL window loop and presenters |
+| `Novolis.Silk` | GLFW/OpenGL window loop and blit (`novolis-silk`) |
 | `Novolis.Rendering.Presentation.Raylib` | Raylib texture presenter |
 | `Novolis.Rendering.Runtime` | `IRayTracingBackend.Output` |
 | `Novolis.Rendering.Abstractions` | `ImageBuffer` pixel storage |

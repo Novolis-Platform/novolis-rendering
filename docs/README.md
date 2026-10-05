@@ -23,7 +23,6 @@ Published docs: [https://novolis-platform.github.io/.github/novolis-rendering/](
 | `Novolis.Rendering.Abstractions` |
 | `Novolis.Rendering.Backends.Cpu` |
 | `Novolis.Rendering.Backends.Igpu` |
-| `Novolis.Rendering.Backends.TwoD.Silk` |
 | `Novolis.Rendering.Backends.Vulkan` |
 | `Novolis.Rendering.Compile` |
 | `Novolis.Rendering.DependencyInjection` |
@@ -31,7 +30,6 @@ Published docs: [https://novolis-platform.github.io/.github/novolis-rendering/](
 | `Novolis.Rendering.PathTrace.Demos` |
 | `Novolis.Rendering.Presentation.Abstractions` |
 | `Novolis.Rendering.Presentation.Raylib` |
-| `Novolis.Rendering.Presentation.Silk` |
 | `Novolis.Rendering.Runtime` |
 | `Novolis.Rendering.Scene` |
 | `Novolis.Rendering.Testing` |
