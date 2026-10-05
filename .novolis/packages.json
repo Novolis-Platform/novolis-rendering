@@ -5,6 +5,7 @@
     "Novolis.Rendering.Presentation.Abstractions": { "description": "Host-neutral presentation contracts for CPU/GPU frames." },
     "Novolis.Rendering.Runtime": { "description": "Flat runtime scene structures and IRayTracingBackend." },
     "Novolis.Rendering.Materials": { "description": "Authoring materials and GpuMaterial compilation." },
+    "Novolis.Rendering.Appearance": { "description": "Declarative appearance stacks (surface, volume, light, effect, post) with a CPU evaluator." },
     "Novolis.Rendering.Scene": { "description": "Authoring scene graph." },
     "Novolis.Rendering.Compile": { "description": "SceneCompiler and BVH build." },
     "Novolis.Rendering.Backends.Cpu": { "description": "CPU path tracing backend." },

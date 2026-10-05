@@ -4,6 +4,7 @@
     <Project Path="src/Novolis.Rendering.Presentation.Abstractions/Novolis.Rendering.Presentation.Abstractions.csproj" />
     <Project Path="src/Novolis.Rendering.Runtime/Novolis.Rendering.Runtime.csproj" />
     <Project Path="src/Novolis.Rendering.Materials/Novolis.Rendering.Materials.csproj" />
+    <Project Path="src/Novolis.Rendering.Appearance/Novolis.Rendering.Appearance.csproj" />
     <Project Path="src/Novolis.Rendering.Scene/Novolis.Rendering.Scene.csproj" />
     <Project Path="src/Novolis.Rendering.Compile/Novolis.Rendering.Compile.csproj" />
     <Project Path="src/Novolis.Rendering.Backends.Cpu/Novolis.Rendering.Backends.Cpu.csproj" />

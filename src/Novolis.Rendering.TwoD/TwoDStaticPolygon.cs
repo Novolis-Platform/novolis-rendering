@@ -21,6 +21,12 @@ public sealed class TwoDStaticPolygon
     /// <summary>Fill color.</summary>
     public Rgba32 FillColor { get; set; }
 
+    /// <summary>Optional albedo. World XZ / <see cref="TextureMeters"/> becomes UV.</summary>
+    public TwoDTextureId Texture { get; set; }
+
+    /// <summary>World meters mapped across one texture repeat.</summary>
+    public float TextureMeters { get; set; } = 2f;
+
     /// <summary>Outline color when <see cref="DrawOutline"/> is true.</summary>
     public Rgba32 OutlineColor { get; set; } = Rgba32.Black;
 

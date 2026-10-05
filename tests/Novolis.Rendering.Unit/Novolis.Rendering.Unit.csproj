@@ -24,6 +24,7 @@
     <ProjectReference Include="../../src/Novolis.Rendering.Compile/Novolis.Rendering.Compile.csproj" />
     <ProjectReference Include="../../src/Novolis.Rendering.DependencyInjection/Novolis.Rendering.DependencyInjection.csproj" />
     <ProjectReference Include="../../src/Novolis.Rendering.Materials/Novolis.Rendering.Materials.csproj" />
+    <ProjectReference Include="../../src/Novolis.Rendering.Appearance/Novolis.Rendering.Appearance.csproj" />
     <ProjectReference Include="../../src/Novolis.Rendering.Runtime/Novolis.Rendering.Runtime.csproj" />
     <ProjectReference Include="../../src/Novolis.Rendering.Testing/Novolis.Rendering.Testing.csproj" />
   </ItemGroup>

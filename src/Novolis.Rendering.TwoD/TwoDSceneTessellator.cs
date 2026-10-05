@@ -39,7 +39,7 @@ public static class TwoDSceneTessellator
 
         foreach (var poly in scene.StaticPolygons.OrderBy(p => p.Layer).ThenBy(p => p.SortKey))
         {
-            EmitPolygon(scene, poly, triangles);
+            EmitPolygon(scene, poly, triangles, usedTextures);
         }
 
         foreach (var element in scene.Hud.Elements)
@@ -172,20 +172,38 @@ public static class TwoDSceneTessellator
             texture.Value);
     }
 
-    private static void EmitPolygon(TwoDScene scene, TwoDStaticPolygon poly, List<PlanarTriangle> triangles)
+    private static void EmitPolygon(
+        TwoDScene scene,
+        TwoDStaticPolygon poly,
+        List<PlanarTriangle> triangles,
+        HashSet<int> usedTextures)
     {
         if (poly.DrawFilled)
         {
+            var textured = poly.Texture.IsValid;
+            var texId = textured ? poly.Texture.Value : 0;
+            var meters = poly.TextureMeters <= 0f ? 1f : poly.TextureMeters;
+            if (textured)
+            {
+                usedTextures.Add(texId);
+            }
+
             foreach (var face in poly.Shape.FacesSpan)
             {
                 var a = scene.Camera.WorldToScreen(face.A);
                 var b = scene.Camera.WorldToScreen(face.B);
                 var c = scene.Camera.WorldToScreen(face.C);
+                var ua = textured ? face.A.X / meters : 0f;
+                var va = textured ? face.A.Z / meters : 0f;
+                var ub = textured ? face.B.X / meters : 0f;
+                var vb = textured ? face.B.Z / meters : 0f;
+                var uc = textured ? face.C.X / meters : 0f;
+                var vc = textured ? face.C.Z / meters : 0f;
                 triangles.Add(new PlanarTriangle(
-                    new PlanarVertex(a.X, a.Z, 0f, 0f, poly.FillColor),
-                    new PlanarVertex(b.X, b.Z, 0f, 0f, poly.FillColor),
-                    new PlanarVertex(c.X, c.Z, 0f, 0f, poly.FillColor),
-                    0));
+                    new PlanarVertex(a.X, a.Z, ua, va, poly.FillColor),
+                    new PlanarVertex(b.X, b.Z, ub, vb, poly.FillColor),
+                    new PlanarVertex(c.X, c.Z, uc, vc, poly.FillColor),
+                    texId));
             }
         }
 
