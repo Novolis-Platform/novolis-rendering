@@ -12,5 +12,6 @@
     <LibraryReference Include="Novolis.Math.Arrays" />
     <LibraryReference Include="Novolis.Math.Geometry" />
     <LibraryReference Include="Novolis.Math.Topology" />
+    <PackageReference Include="StbImageSharp" />
   </ItemGroup>
 </Project>

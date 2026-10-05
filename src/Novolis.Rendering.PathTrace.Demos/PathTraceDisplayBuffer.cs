@@ -75,4 +75,24 @@ public sealed class PathTraceDisplayBuffer
         var generation = -1;
         return TryPresent(presenter, ref generation);
     }
+
+    /// <summary>Copies the latest CPU frame for a host blit (Silk, etc.).</summary>
+    public bool TryCopyFrame(out Rgba32[] pixels, out int width, out int height)
+    {
+        lock (_gate)
+        {
+            if (_pixels is null || _width <= 0 || _height <= 0)
+            {
+                pixels = [];
+                width = 0;
+                height = 0;
+                return false;
+            }
+
+            pixels = _pixels;
+            width = _width;
+            height = _height;
+            return true;
+        }
+    }
 }

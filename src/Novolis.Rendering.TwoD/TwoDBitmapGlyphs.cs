@@ -1,21 +1,23 @@
 using Novolis.Math.Geometry;
 
-namespace Novolis.Rendering.Backends.TwoD.Silk;
+namespace Novolis.Rendering.TwoD;
 
-/// <summary>5×7 bitmap font for HUD and menu text without a TTF dependency.</summary>
-internal static class TwoDBitmapFont
+/// <summary>5×7 bitmap glyph pixels for HUD and menu text (no GL).</summary>
+public static class TwoDBitmapGlyphs
 {
     private static readonly Dictionary<char, byte[]> Glyphs = BuildGlyphs();
 
-    /// <summary>Emits solid quads for each glyph cell.</summary>
+    /// <summary>Emits solid screen-space triangles for each glyph cell.</summary>
     public static void EmitText(
-        List<SpriteVertex> vertices,
+        List<PlanarTriangle> triangles,
         string text,
         float x,
         float y,
         float cellSize,
         Rgba32 color)
     {
+        ArgumentNullException.ThrowIfNull(triangles);
+        text ??= string.Empty;
         var cursorX = x;
         foreach (var ch in text.ToUpperInvariant())
         {
@@ -44,7 +46,7 @@ internal static class TwoDBitmapFont
 
                     var px = cursorX + col * cellSize;
                     var py = y + row * cellSize;
-                    AddQuad(vertices, px, py, cellSize, cellSize, color);
+                    AddSolidQuad(triangles, px, py, cellSize, cellSize, color);
                 }
             }
 
@@ -52,23 +54,18 @@ internal static class TwoDBitmapFont
         }
     }
 
-    private static void AddQuad(List<SpriteVertex> vertices, float x, float y, float w, float h, Rgba32 color)
+    private static void AddSolidQuad(List<PlanarTriangle> triangles, float x, float y, float w, float h, Rgba32 color)
     {
-        var r = color.R / 255f;
-        var g = color.G / 255f;
-        var b = color.B / 255f;
-        var a = color.A / 255f;
-        vertices.Add(new SpriteVertex(x, y, 0f, 0f, r, g, b, a));
-        vertices.Add(new SpriteVertex(x + w, y, 0f, 0f, r, g, b, a));
-        vertices.Add(new SpriteVertex(x, y + h, 0f, 0f, r, g, b, a));
-        vertices.Add(new SpriteVertex(x, y, 0f, 0f, r, g, b, a));
-        vertices.Add(new SpriteVertex(x, y + h, 0f, 0f, r, g, b, a));
-        vertices.Add(new SpriteVertex(x + w, y + h, 0f, 0f, r, g, b, a));
+        var a = new PlanarVertex(x, y, 0f, 0f, color);
+        var b = new PlanarVertex(x + w, y, 0f, 0f, color);
+        var c = new PlanarVertex(x, y + h, 0f, 0f, color);
+        var d = new PlanarVertex(x + w, y + h, 0f, 0f, color);
+        triangles.Add(new PlanarTriangle(a, c, b, 0));
+        triangles.Add(new PlanarTriangle(b, c, d, 0));
     }
 
-    private static Dictionary<char, byte[]> BuildGlyphs()
-    {
-        Dictionary<char, byte[]> map = new()
+    private static Dictionary<char, byte[]> BuildGlyphs() =>
+        new()
         {
             [' '] = [0, 0, 0, 0, 0, 0, 0],
             ['0'] = [0x0E, 0x11, 0x13, 0x15, 0x19, 0x11, 0x0E],
@@ -124,6 +121,4 @@ internal static class TwoDBitmapFont
             [')'] = [0x04, 0x02, 0x01, 0x01, 0x01, 0x02, 0x04],
             ['%'] = [0x19, 0x1A, 0x02, 0x04, 0x08, 0x13, 0x13],
         };
-        return map;
-    }
 }

@@ -1,23 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <Import Project="$(MSBuildThisFileDirectory)..\..\build\Novolis.Rendering.Packaging.props" />
   <PropertyGroup>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RootNamespace>Novolis.Rendering.Backends.Vulkan</RootNamespace>
     <AssemblyName>Novolis.Rendering.Backends.Vulkan</AssemblyName>
     <PackageId>Novolis.Rendering.Backends.Vulkan</PackageId>
     <IsPackable>true</IsPackable>
-    <Description>Vulkan backends: compute path tracing and interactive wireframe graphics (SPIR-V).</Description>
+    <Description>Vulkan-named path tracing backend. GPU Shaderc/Vulkan lives in Novolis.Silk.Compute; this package keeps IRayTracingBackend via CPU fallback.</Description>
   </PropertyGroup>
   <ItemGroup>
     <LibraryReference Include="Novolis.Math.Geometry" />
-    <PackageReference Include="Silk.NET.Shaderc" />
-    <PackageReference Include="Silk.NET.Shaderc.Native" />
-    <PackageReference Include="Silk.NET.Vulkan" />
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="Shaders\path_trace.comp" />
-    <EmbeddedResource Include="Shaders\wire.vert" />
-    <EmbeddedResource Include="Shaders\wire.frag" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Novolis.Rendering.Backends.Cpu\Novolis.Rendering.Backends.Cpu.csproj" />

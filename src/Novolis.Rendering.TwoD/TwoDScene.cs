@@ -57,4 +57,8 @@ public sealed class TwoDScene
         Collision.AddStatic(new TwoDCollider(poly));
         return visual;
     }
+
+    /// <summary>Tessellates this scene into a host-neutral planar draw list.</summary>
+    public PlanarDrawList Tessellate(int width, int height) =>
+        TwoDSceneTessellator.Tessellate(this, width, height);
 }

@@ -34,15 +34,17 @@ scene.Menus.Push(new TwoDMenuScreen("SUPER NOVOLIS", [
 ]));
 ```
 
-Draw with a backend:
+Draw by tessellating into Math and submitting through a Silk host:
 
 ```csharp
-using Novolis.Rendering.Backends.TwoD.Silk;
+using Novolis.Rendering.TwoD;
+using Novolis.Silk;
 
-SilkTwoDGame.Run("Platformer", 800, 600, ctx =>
+var scene = new TwoDScene();
+SilkGame.Run("Platformer", 800, 600, frame =>
 {
-    ctx.Scene.Update(ctx.DeltaSeconds);
-    ctx.Renderer.DrawScene(ctx.Scene);
+    scene.Update(frame.DeltaSeconds);
+    frame.Submit(scene.Tessellate(frame.Width, frame.Height));
 });
 ```
 
@@ -50,8 +52,8 @@ SilkTwoDGame.Run("Platformer", 800, 600, ctx =>
 
 | Package | Role |
 |---------|------|
-| `Novolis.Rendering.TwoD` | Scene, collision, HUD, menus |
-| `Novolis.Rendering.Backends.TwoD.Silk` | Silk.NET OpenGL renderer + game loop |
+| `Novolis.Rendering.TwoD` | Scene, collision, HUD, menus, tessellate to `PlanarDrawList` |
+| `Novolis.Silk` | GLFW / OpenGL host (`Submit` / `Blit`) — compose in apps and labs |
 
 ## In-memory layered grids (tests / debug)
 

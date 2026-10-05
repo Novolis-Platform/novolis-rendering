@@ -50,4 +50,30 @@ public sealed class TwoDMenuStack
 
         return screen.Items[screen.FocusIndex].OnSelect?.Invoke();
     }
+
+    /// <summary>Applies host-free menu input (up/down/confirm/cancel).</summary>
+    public void HandleInput(bool up, bool down, bool confirm, bool cancel)
+    {
+        if (!IsActive)
+        {
+            return;
+        }
+
+        if (up)
+        {
+            Navigate(-1);
+        }
+        else if (down)
+        {
+            Navigate(1);
+        }
+        else if (confirm)
+        {
+            Select();
+        }
+        else if (cancel)
+        {
+            Pop();
+        }
+    }
 }

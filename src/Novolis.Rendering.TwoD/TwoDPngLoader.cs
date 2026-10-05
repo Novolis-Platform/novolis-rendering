@@ -1,16 +1,12 @@
 using Novolis.Math.Geometry;
-using Novolis.Rendering.TwoD;
 using StbImageSharp;
 
-namespace Novolis.Rendering.Backends.TwoD.Silk;
+namespace Novolis.Rendering.TwoD;
 
-/// <summary>Loads PNG files into a <see cref="TwoDTextureRegistry"/>.</summary>
-public static class SilkTwoDPngLoader
+/// <summary>Loads PNG files into a <see cref="TwoDTextureRegistry"/> (host-neutral; no GL).</summary>
+public static class TwoDPngLoader
 {
     /// <summary>Loads a PNG from disk and registers RGBA pixels.</summary>
-    /// <param name="registry">Target catalog.</param>
-    /// <param name="path">File path.</param>
-    /// <returns>Registered texture id.</returns>
     public static TwoDTextureId LoadPng(TwoDTextureRegistry registry, string path)
     {
         ArgumentNullException.ThrowIfNull(registry);
