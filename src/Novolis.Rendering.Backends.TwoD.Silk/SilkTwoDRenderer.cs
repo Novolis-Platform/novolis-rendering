@@ -191,7 +191,7 @@ public sealed class SilkTwoDRenderer : ITwoDRenderer
 
         if (menu.DimBackground)
         {
-            EmitScreenSolidQuad(0, 0, _viewportWidth, _viewportHeight, new Rgba32(0, 0, 0, 160), screenMvp);
+            EmitScreenSolidQuad(0, 0, _viewportWidth, _viewportHeight, new Rgba32(0, 0, 0, 210), screenMvp);
         }
 
         var titleY = _viewportHeight * 0.25f;
