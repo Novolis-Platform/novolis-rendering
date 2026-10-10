@@ -26,9 +26,9 @@ Simulation.View (ViewPose) → RenderCamera → IRayTracer → ImageBuffer → R
 | `Novolis.Rendering.Abstractions` | `Novolis.Math.Geometry` | Buffers, camera, scene DTOs, `IRayTracer` |
 | `Novolis.Rendering.Raytrace` | Abstractions, Math | `CpuRayTracer`, intersection helpers |
 | `Novolis.Rendering` | Facets above | Meta / convenience reference |
-| `Novolis.Rendering.TwoD` | Math.Geometry, Math.Topology | 2D scene, sprites, collision, HUD, menus, tessellate |
+| `Novolis.Rendering.Planar` | Math.Geometry, Math.Topology | 2D scene, sprites, collision, HUD, menus, tessellate |
 
-See **[design-two-d.md](design-two-d.md)** for the Mario-style 2D stack.
+See **[design-planar.md](design-planar.md)** for the Mario-style planar stack.
 
 ## Roadmap
 

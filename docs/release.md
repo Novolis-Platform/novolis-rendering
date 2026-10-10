@@ -22,7 +22,7 @@ Published docs: [https://novolis-platform.github.io/.github/novolis-rendering/](
 - `Novolis.Rendering.Runtime`
 - `Novolis.Rendering.Scene`
 - `Novolis.Rendering.Testing`
-- `Novolis.Rendering.TwoD`
+- `Novolis.Rendering.Planar`
 
 ## Consumers
 

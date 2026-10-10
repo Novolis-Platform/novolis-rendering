@@ -55,7 +55,7 @@
 | `Novolis.Rendering.Runtime` | `dotnet add package Novolis.Rendering.Runtime` | [README](https://github.com/Novolis-Platform/novolis-rendering/blob/main/src/Novolis.Rendering.Runtime/README.md) |
 | `Novolis.Rendering.Scene` | `dotnet add package Novolis.Rendering.Scene` | [README](https://github.com/Novolis-Platform/novolis-rendering/blob/main/src/Novolis.Rendering.Scene/README.md) |
 | `Novolis.Rendering.Testing` | `dotnet add package Novolis.Rendering.Testing` | [README](https://github.com/Novolis-Platform/novolis-rendering/blob/main/src/Novolis.Rendering.Testing/README.md) |
-| `Novolis.Rendering.TwoD` | `dotnet add package Novolis.Rendering.TwoD` | [README](https://github.com/Novolis-Platform/novolis-rendering/blob/main/src/Novolis.Rendering.TwoD/README.md) |
+| `Novolis.Rendering.Planar` | `dotnet add package Novolis.Rendering.Planar` | [README](https://github.com/Novolis-Platform/novolis-rendering/blob/main/src/Novolis.Rendering.Planar/README.md) |
 
 For NuGet.org and Visual Studio, the **embedded** README.md inside each package is authoritative.
 
@@ -91,7 +91,7 @@ Scene + IMaterial  →  SceneCompiler  →  CompiledScene
 | `Novolis.Rendering.PathTrace.Demos` | Shared demo scenes, workers, display buffer |
 | `Novolis.Rendering.Presentation.Raylib` | Raylib CPU frame presenter |
 | `Novolis.Rendering.Testing` | Golden framebuffer SHA-256 helpers |
-| `Novolis.Rendering.TwoD` | Host-neutral 2D platformer scene model + tessellate |
+| `Novolis.Rendering.Planar` | Host-neutral 2D platformer scene model + tessellate |
 | `Novolis.Rendering` | Meta package referencing the stack |
 
 Normative API: [docs/materials-and-backends.md](docs/materials-and-backends.md). Roadmap: [docs/roadmap-raytracing.md](docs/roadmap-raytracing.md).

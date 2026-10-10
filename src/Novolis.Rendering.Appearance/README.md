@@ -43,5 +43,5 @@ Grey surface
 | Package | Role |
 |---------|------|
 | `Novolis.Rendering.Materials` | Path-trace `IMaterial` → `GpuMaterial` |
-| `Novolis.Rendering.TwoD` | Register baked pixels as planar textures |
+| `Novolis.Rendering.Planar` | Register baked pixels as planar textures |
 | `Novolis.Silk.Capture` | Framebuffer readback for post stacks |

@@ -68,7 +68,7 @@ This package has no unique public types. See included packages:
 | `Novolis.Silk` | Windowed GLFW/OpenGL host (separate repo) |
 | `Novolis.Rendering.Presentation.Raylib` | Raylib presenter |
 | `Novolis.Rendering.PathTrace.Demos` | Shared demo scenes and workers |
-| `Novolis.Rendering.TwoD` | Separate 2D platformer scene model |
+| `Novolis.Rendering.Planar` | Separate 2D platformer scene model |
 
 ## More documentation
 

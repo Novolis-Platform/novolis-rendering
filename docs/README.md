@@ -11,7 +11,7 @@ Published docs: [https://novolis-platform.github.io/.github/novolis-rendering/](
 | [getting-started.md](getting-started.md) | Install, restore from GitHub Packages, first use |
 | [design.md](design.md) | Goals, layer placement, non-goals |
 | [release.md](release.md) | CalVer publish and package list |
-| [design-two-d.md](design-two-d.md) | design-two-d |
+| [design-planar.md](design-planar.md) | planar scene, sprites, collision, HUD |
 | [materials-and-backends.md](materials-and-backends.md) | materials-and-backends |
 | [roadmap-raytracing.md](roadmap-raytracing.md) | roadmap-raytracing |
 
@@ -33,7 +33,7 @@ Published docs: [https://novolis-platform.github.io/.github/novolis-rendering/](
 | `Novolis.Rendering.Runtime` |
 | `Novolis.Rendering.Scene` |
 | `Novolis.Rendering.Testing` |
-| `Novolis.Rendering.TwoD` |
+| `Novolis.Rendering.Planar` |
 
 ## More
 

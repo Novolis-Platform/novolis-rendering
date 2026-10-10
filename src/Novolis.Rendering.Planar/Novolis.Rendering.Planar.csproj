@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="$(MSBuildThisFileDirectory)..\..\build\Novolis.Rendering.Packaging.props" />
+  <PropertyGroup>
+    <RootNamespace>Novolis.Rendering.Planar</RootNamespace>
+    <AssemblyName>Novolis.Rendering.Planar</AssemblyName>
+    <PackageId>Novolis.Rendering.Planar</PackageId>
+    <IsPackable>true</IsPackable>
+    <Description>Host-neutral 2D scene model: sprites, animation, static polygons, collision, HUD, and menus.</Description>
+    <PackageTags>rendering;2d;sprites;orthographic</PackageTags>
+  </PropertyGroup>
+  <ItemGroup>
+    <LibraryReference Include="Novolis.Math.Arrays" />
+    <LibraryReference Include="Novolis.Math.Geometry" />
+    <LibraryReference Include="Novolis.Math.Topology" />
+    <PackageReference Include="StbImageSharp" />
+  </ItemGroup>
+</Project>
