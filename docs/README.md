@@ -25,6 +25,7 @@ Published docs: [https://novolis-platform.github.io/.github/novolis-rendering/](
 | `Novolis.Rendering.Backends.Igpu` |
 | `Novolis.Rendering.Backends.Vulkan` |
 | `Novolis.Rendering.Compile` |
+| `Novolis.Rendering.FrameGraph` |
 | `Novolis.Rendering.DependencyInjection` |
 | `Novolis.Rendering.Materials` |
 | `Novolis.Rendering.PathTrace.Demos` |

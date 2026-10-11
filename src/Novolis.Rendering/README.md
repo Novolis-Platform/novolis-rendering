@@ -16,7 +16,7 @@ dotnet add package Novolis.Rendering
 
 **Prerequisites:** [.NET 10 SDK](https://dotnet.microsoft.com/download) (`net10.0`).
 
-Includes: `Novolis.Rendering.Abstractions`, `.Scene`, `.Materials`, `.Compile`, `.Runtime`, `.Backends.Cpu`, `.DependencyInjection`, `.Presentation.Abstractions`.
+Includes: `Novolis.Rendering.Abstractions`, `.Scene`, `.Materials`, `.Compile`, `.FrameGraph`, `.Runtime`, `.Backends.Cpu`, `.DependencyInjection`, `.Presentation.Abstractions`.
 
 Does **not** include ILGPU, Vulkan, Silk/Raylib presenters, 2D stack, or path-trace demos — add those explicitly.
 
@@ -55,6 +55,7 @@ This package has no unique public types. See included packages:
 |---------|------|
 | `Novolis.Rendering.Scene` | Authoring scenes |
 | `Novolis.Rendering.Compile` | `SceneCompiler` |
+| `Novolis.Rendering.FrameGraph` | Renderer-owned frame resources, passes, barriers, quality, and captures |
 | `Novolis.Rendering.Runtime` | `IRayTracingBackend`, `CompiledScene` |
 | `Novolis.Rendering.Backends.Cpu` | CPU path tracer (included) |
 | `Novolis.Rendering.DependencyInjection` | `AddRayTracing()` extensions |

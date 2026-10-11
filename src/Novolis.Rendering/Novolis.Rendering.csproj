@@ -14,6 +14,7 @@
     <ProjectReference Include="..\Novolis.Rendering.Materials\Novolis.Rendering.Materials.csproj" />
     <ProjectReference Include="..\Novolis.Rendering.Scene\Novolis.Rendering.Scene.csproj" />
     <ProjectReference Include="..\Novolis.Rendering.Compile\Novolis.Rendering.Compile.csproj" />
+    <ProjectReference Include="..\Novolis.Rendering.FrameGraph\Novolis.Rendering.FrameGraph.csproj" />
     <ProjectReference Include="..\Novolis.Rendering.Backends.Cpu\Novolis.Rendering.Backends.Cpu.csproj" />
     <ProjectReference Include="..\Novolis.Rendering.DependencyInjection\Novolis.Rendering.DependencyInjection.csproj" />
   </ItemGroup>

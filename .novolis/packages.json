@@ -8,6 +8,7 @@
     "Novolis.Rendering.Appearance": { "description": "Declarative appearance stacks (surface, volume, light, effect, post) with a CPU evaluator." },
     "Novolis.Rendering.Scene": { "description": "Authoring scene graph." },
     "Novolis.Rendering.Compile": { "description": "SceneCompiler and BVH build." },
+    "Novolis.Rendering.FrameGraph": { "description": "Typed renderer-owned frame graph, barriers, quality, and target capabilities." },
     "Novolis.Rendering.Backends.Cpu": { "description": "CPU path tracing backend." },
     "Novolis.Rendering.Backends.Igpu": { "description": "ILGPU ray tracing backend." },
     "Novolis.Rendering.Backends.Vulkan": { "description": "Vulkan-named path tracing backend (CPU fallback; GPU is Novolis.Silk.Compute)." },

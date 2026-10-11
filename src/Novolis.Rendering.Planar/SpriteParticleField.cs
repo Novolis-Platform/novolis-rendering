@@ -7,11 +7,19 @@ public sealed class SpriteParticleField
     public const int DefaultCapacity = 12000;
 
     private readonly SpriteParticle[] _items;
+    private uint _randomState;
     private int _count;
 
     /// <summary>Creates a pool of <paramref name="capacity"/> slots.</summary>
-    public SpriteParticleField(int capacity = DefaultCapacity) =>
+    /// <param name="capacity">Maximum live particle count.</param>
+    /// <param name="seed">Stable replacement seed used when the pool is full.</param>
+    public SpriteParticleField(
+        int capacity = DefaultCapacity,
+        uint seed = 0x9E3779B9u)
+    {
         _items = new SpriteParticle[int.Max(1, capacity)];
+        _randomState = seed == 0 ? 0x9E3779B9u : seed;
+    }
 
     /// <summary>Live particle count.</summary>
     public int Count => _count;
@@ -28,7 +36,7 @@ public sealed class SpriteParticleField
         var next = WithLife(particle);
         if (_count >= _items.Length)
         {
-            _items[Random.Shared.Next(_count)] = next;
+            _items[NextIndex(_count)] = next;
             return;
         }
 
@@ -74,5 +82,13 @@ public sealed class SpriteParticleField
         }
 
         return particle;
+    }
+
+    private int NextIndex(int exclusiveMax)
+    {
+        _randomState ^= _randomState << 13;
+        _randomState ^= _randomState >> 17;
+        _randomState ^= _randomState << 5;
+        return (int)(_randomState % (uint)exclusiveMax);
     }
 }

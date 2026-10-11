@@ -22,6 +22,7 @@
     <ProjectReference Include="../../src/Novolis.Rendering.PathTrace.Demos/Novolis.Rendering.PathTrace.Demos.csproj" />
     <ProjectReference Include="../../src/Novolis.Rendering.Planar/Novolis.Rendering.Planar.csproj" />
     <ProjectReference Include="../../src/Novolis.Rendering.Compile/Novolis.Rendering.Compile.csproj" />
+    <ProjectReference Include="../../src/Novolis.Rendering.FrameGraph/Novolis.Rendering.FrameGraph.csproj" />
     <ProjectReference Include="../../src/Novolis.Rendering.DependencyInjection/Novolis.Rendering.DependencyInjection.csproj" />
     <ProjectReference Include="../../src/Novolis.Rendering.Materials/Novolis.Rendering.Materials.csproj" />
     <ProjectReference Include="../../src/Novolis.Rendering.Appearance/Novolis.Rendering.Appearance.csproj" />

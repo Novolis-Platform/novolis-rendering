@@ -47,6 +47,7 @@
 | `Novolis.Rendering.Backends.Igpu` | `dotnet add package Novolis.Rendering.Backends.Igpu` | [README](https://github.com/Novolis-Platform/novolis-rendering/blob/main/src/Novolis.Rendering.Backends.Igpu/README.md) |
 | `Novolis.Rendering.Backends.Vulkan` | `dotnet add package Novolis.Rendering.Backends.Vulkan` | [README](https://github.com/Novolis-Platform/novolis-rendering/blob/main/src/Novolis.Rendering.Backends.Vulkan/README.md) |
 | `Novolis.Rendering.Compile` | `dotnet add package Novolis.Rendering.Compile` | [README](https://github.com/Novolis-Platform/novolis-rendering/blob/main/src/Novolis.Rendering.Compile/README.md) |
+| `Novolis.Rendering.FrameGraph` | `dotnet add package Novolis.Rendering.FrameGraph` | [README](https://github.com/Novolis-Platform/novolis-rendering/blob/main/src/Novolis.Rendering.FrameGraph/README.md) |
 | `Novolis.Rendering.DependencyInjection` | `dotnet add package Novolis.Rendering.DependencyInjection` | [README](https://github.com/Novolis-Platform/novolis-rendering/blob/main/src/Novolis.Rendering.DependencyInjection/README.md) |
 | `Novolis.Rendering.Materials` | `dotnet add package Novolis.Rendering.Materials` | [README](https://github.com/Novolis-Platform/novolis-rendering/blob/main/src/Novolis.Rendering.Materials/README.md) |
 | `Novolis.Rendering.PathTrace.Demos` | `dotnet add package Novolis.Rendering.PathTrace.Demos` | [README](https://github.com/Novolis-Platform/novolis-rendering/blob/main/src/Novolis.Rendering.PathTrace.Demos/README.md) |
@@ -83,6 +84,7 @@ Scene + IMaterial  →  SceneCompiler  →  CompiledScene
 | `Novolis.Rendering.Materials` | `IMaterial`, presets, `MaterialCompiler` → `GpuMaterial` |
 | `Novolis.Rendering.Scene` | Authoring `Scene`, `MeshInstance`, lights |
 | `Novolis.Rendering.Compile` | `SceneCompiler` + BVH build |
+| `Novolis.Rendering.FrameGraph` | Typed frame resources, passes, barriers, quality, resize, and captures |
 | `Novolis.Rendering.Runtime` | `CompiledScene`, `CameraSnapshot`, `IRayTracingBackend` |
 | `Novolis.Rendering.Backends.Cpu` | CPU path tracer (progressive accumulation) |
 | `Novolis.Rendering.Backends.Igpu` | ILGPU GPU path tracer (CPU fallback when no GPU or `deterministic: true`) |

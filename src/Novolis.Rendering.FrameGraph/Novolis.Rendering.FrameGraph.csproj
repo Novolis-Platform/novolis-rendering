@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="$(MSBuildThisFileDirectory)..\..\build\Novolis.Rendering.Packaging.props" />
+  <PropertyGroup>
+    <RootNamespace>Novolis.Rendering.FrameGraph</RootNamespace>
+    <AssemblyName>Novolis.Rendering.FrameGraph</AssemblyName>
+    <PackageId>Novolis.Rendering.FrameGraph</PackageId>
+    <IsPackable>true</IsPackable>
+    <Description>Renderer-owned frame graph contracts for typed resources, pass ordering, barriers, and target capabilities.</Description>
+    <NoWarn>$(NoWarn);NOV2201</NoWarn>
+  </PropertyGroup>
+</Project>

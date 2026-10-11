@@ -7,6 +7,7 @@
     <Project Path="src/Novolis.Rendering.Appearance/Novolis.Rendering.Appearance.csproj" />
     <Project Path="src/Novolis.Rendering.Scene/Novolis.Rendering.Scene.csproj" />
     <Project Path="src/Novolis.Rendering.Compile/Novolis.Rendering.Compile.csproj" />
+    <Project Path="src/Novolis.Rendering.FrameGraph/Novolis.Rendering.FrameGraph.csproj" />
     <Project Path="src/Novolis.Rendering.Backends.Cpu/Novolis.Rendering.Backends.Cpu.csproj" />
     <Project Path="src/Novolis.Rendering.Backends.Igpu/Novolis.Rendering.Backends.Igpu.csproj" />
     <Project Path="src/Novolis.Rendering.Backends.Vulkan/Novolis.Rendering.Backends.Vulkan.csproj" />
