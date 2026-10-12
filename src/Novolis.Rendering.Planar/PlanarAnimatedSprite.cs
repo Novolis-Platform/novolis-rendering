@@ -12,6 +12,9 @@ public sealed class PlanarAnimatedSprite
     /// <summary>Elapsed playback time in seconds.</summary>
     public float Time { get; set; }
 
+    /// <summary>Whether the animated sprite receives the scene light field.</summary>
+    public bool ReceivesLighting { get; set; } = true;
+
     /// <summary>Draw layer.</summary>
     public PlanarDrawLayer Layer { get; set; } = PlanarDrawLayer.World;
 

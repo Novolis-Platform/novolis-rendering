@@ -18,8 +18,14 @@ public sealed class PlanarStaticPolygon
     /// <summary>World-space polygon.</summary>
     public TopologyPolygon Shape { get; }
 
+    /// <summary>Optional prism part classification used by depth and occlusion policies.</summary>
+    public PlanarWallPartKind WallPart { get; set; }
+
     /// <summary>Fill color.</summary>
     public Rgba32 FillColor { get; set; }
+
+    /// <summary>Whether the polygon receives the scene light field.</summary>
+    public bool ReceivesLighting { get; set; } = true;
 
     /// <summary>Optional albedo. World XZ / <see cref="TextureMeters"/> becomes UV.</summary>
     public PlanarTextureId Texture { get; set; }

@@ -7,6 +7,7 @@ public sealed class PlanarTextureRegistry
 {
     private readonly List<Rgba32[]> _pixelBuffers = [];
     private readonly List<(int Width, int Height, string? Name)> _metadata = [];
+    private readonly List<PlanarTextureBlob> _blobs = [];
 
     /// <summary>Registers decoded RGBA pixels and returns a stable id.</summary>
     /// <param name="pixels">Row-major RGBA buffer (<c>width * height</c> elements).</param>
@@ -26,9 +27,12 @@ public sealed class PlanarTextureRegistry
             throw new ArgumentException("Pixel count must equal width * height.", nameof(pixels));
         }
 
-        _pixelBuffers.Add(pixels.ToArray());
+        var buffer = pixels.ToArray();
+        _pixelBuffers.Add(buffer);
         _metadata.Add((width, height, name));
-        return new PlanarTextureId(_pixelBuffers.Count);
+        var id = new PlanarTextureId(_pixelBuffers.Count);
+        _blobs.Add(new PlanarTextureBlob(id.Value, width, height, buffer));
+        return id;
     }
 
     /// <summary>Gets metadata for a texture id.</summary>
@@ -60,6 +64,14 @@ public sealed class PlanarTextureRegistry
         }
 
         src.AsSpan().CopyTo(pixels);
+    }
+
+    /// <summary>Gets the immutable backing buffer for a draw-list texture.</summary>
+    /// <remarks>The renderer only reads the returned pixel array after registration.</remarks>
+    internal PlanarTextureBlob GetBlob(PlanarTextureId id)
+    {
+        EnsureValid(id);
+        return _blobs[id.Value - 1];
     }
 
     /// <summary>Whether <paramref name="id"/> is registered.</summary>

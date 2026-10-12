@@ -23,6 +23,28 @@ public static class PlanarWallComposer
         PlanarTextureId texture,
         float textureMeters = 2f,
         bool frontFacesOnly = true)
+        => Add(
+            scene,
+            prism,
+            texture,
+            textureMeters,
+            frontFacesOnly,
+            texture,
+            Rgba32.White,
+            Rgba32.White);
+
+    /// <summary>
+    /// Adds front faces and a lifted cap with separate face/cap textures and tints.
+    /// </summary>
+    public static List<PlanarWallFace> Add(
+        PlanarScene scene,
+        PlanarPrism prism,
+        PlanarTextureId faceTexture,
+        float textureMeters,
+        bool frontFacesOnly,
+        PlanarTextureId capTexture,
+        Rgba32 faceFill,
+        Rgba32 capFill)
     {
         ArgumentNullException.ThrowIfNull(scene);
         ArgumentNullException.ThrowIfNull(prism);
@@ -38,17 +60,19 @@ public static class PlanarWallComposer
             var b = side.End;
             var ext = side.Offset;
             var shape = new Polygon([a, b, b + ext, a + ext]);
-            var poly = new PlanarStaticPolygon(shape, Rgba32.White)
+            var poly = new PlanarStaticPolygon(shape, faceFill)
             {
                 DrawFilled = true,
-                Texture = texture,
+                Texture = faceTexture,
                 TextureMeters = textureMeters,
+                WallPart = PlanarWallPartKind.Side,
                 SortKey = 40 + (int)(MathF.Min(a.Z, b.Z) * 4f),
             };
             scene.StaticPolygons.Add(poly);
             faces.Add(new PlanarWallFace
             {
                 Polygon = poly,
+                BaseFillColor = faceFill,
                 A = a,
                 B = b,
                 Offset = ext,
@@ -56,7 +80,7 @@ public static class PlanarWallComposer
             });
         }
 
-        AddCap(scene, prism, texture, textureMeters);
+        AddCap(scene, prism, capTexture, textureMeters, capFill);
         return faces;
     }
 
@@ -75,11 +99,21 @@ public static class PlanarWallComposer
                 alpha = 86;
             }
 
-            face.Polygon.FillColor = new Rgba32(Mul(255, lightBoost), Mul(255, lightBoost), Mul(255, lightBoost), (byte)alpha);
+            var baseColor = face.BaseFillColor;
+            face.Polygon.FillColor = new Rgba32(
+                Mul(baseColor.R, lightBoost),
+                Mul(baseColor.G, lightBoost),
+                Mul(baseColor.B, lightBoost),
+                (byte)System.Math.Min(baseColor.A, alpha));
         }
     }
 
-    private static void AddCap(PlanarScene scene, PlanarPrism prism, PlanarTextureId texture, float textureMeters)
+    private static void AddCap(
+        PlanarScene scene,
+        PlanarPrism prism,
+        PlanarTextureId texture,
+        float textureMeters,
+        Rgba32 fill)
     {
         if (prism.Cap.Length < 3)
         {
@@ -92,11 +126,12 @@ public static class PlanarWallComposer
             minZ = MathF.Min(minZ, prism.Footprint[i].Z);
         }
 
-        scene.StaticPolygons.Add(new PlanarStaticPolygon(prism.Cap, Rgba32.White)
+        scene.StaticPolygons.Add(new PlanarStaticPolygon(prism.Cap, fill)
         {
             DrawFilled = true,
             Texture = texture,
             TextureMeters = textureMeters,
+            WallPart = PlanarWallPartKind.Cap,
             SortKey = 20 + (int)(minZ * 4f),
         });
     }

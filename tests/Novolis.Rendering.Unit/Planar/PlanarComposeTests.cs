@@ -63,6 +63,10 @@ public sealed class PlanarComposeTests
         var faces = PlanarWallComposer.Add(scene, prism, default);
         await Assert.That(faces.Count).IsGreaterThan(0);
         await Assert.That(scene.StaticPolygons.Count).IsGreaterThan(faces.Count);
+        await Assert.That(scene.StaticPolygons.Any(
+            polygon => polygon.WallPart == PlanarWallPartKind.Side)).IsTrue();
+        await Assert.That(scene.StaticPolygons.Any(
+            polygon => polygon.WallPart == PlanarWallPartKind.Cap)).IsTrue();
     }
 
     [Test]

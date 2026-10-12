@@ -16,6 +16,9 @@ public sealed class PlanarScene
     /// <summary>Orthographic world viewport.</summary>
     public PlanarViewport Camera { get; } = new();
 
+    /// <summary>Host-neutral ambient and local light sources.</summary>
+    public PlanarLighting Lighting { get; } = new();
+
     /// <summary>Screen-space HUD.</summary>
     public PlanarHud Hud { get; } = new();
 

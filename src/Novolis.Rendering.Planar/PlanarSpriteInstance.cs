@@ -17,6 +17,9 @@ public sealed class PlanarSpriteInstance
     /// <summary>Color multiplier.</summary>
     public Rgba32 Tint { get; set; } = Rgba32.White;
 
+    /// <summary>Whether the sprite receives the scene light field.</summary>
+    public bool ReceivesLighting { get; set; } = true;
+
     /// <summary>Draw layer and sort key.</summary>
     public PlanarDrawLayer Layer { get; set; } = PlanarDrawLayer.World;
 

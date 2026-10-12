@@ -16,30 +16,72 @@ public static class PlanarSceneTessellator
         var triangles = new List<PlanarTriangle>(256);
         var usedTextures = new HashSet<int>();
 
-        foreach (var sprite in scene.Sprites.OrderBy(s => s.Layer).ThenBy(s => s.SortKey))
+        var worldDrawables = new List<WorldDrawable>(
+            scene.Sprites.Count
+            + scene.AnimatedSprites.Count
+            + scene.StaticPolygons.Count);
+        var sequence = 0;
+        foreach (var sprite in scene.Sprites)
         {
-            if (sprite.ScreenSpace)
+            if (!sprite.ScreenSpace
+                && IsVisible(
+                    scene.Camera,
+                    sprite.Transform.Position,
+                    MathF.Max(MathF.Abs(sprite.Transform.Scale.X), MathF.Abs(sprite.Transform.Scale.Z))))
             {
-                continue;
+                worldDrawables.Add(WorldDrawable.FromSprite(sprite, sequence++));
             }
-
-            EmitWorldSprite(scene, sprite, triangles, usedTextures);
         }
 
-        foreach (var anim in scene.AnimatedSprites.OrderBy(a => a.Layer).ThenBy(a => a.SortKey))
+        foreach (var anim in scene.AnimatedSprites)
         {
-            if (anim.Clip is null)
+            if (anim.Clip is not null
+                && IsVisible(
+                    scene.Camera,
+                    anim.Transform.Position,
+                    MathF.Max(MathF.Abs(anim.Transform.Scale.X), MathF.Abs(anim.Transform.Scale.Z))))
             {
-                continue;
+                worldDrawables.Add(WorldDrawable.FromAnimated(anim, sequence++));
             }
-
-            var rect = anim.Clip.GetSourceRect(anim.CurrentFrameIndex);
-            EmitWorldQuad(scene, anim.Clip.Sheet.Texture, rect, anim.Transform, Rgba32.White, triangles, usedTextures);
         }
 
-        foreach (var poly in scene.StaticPolygons.OrderBy(p => p.Layer).ThenBy(p => p.SortKey))
+        foreach (var poly in scene.StaticPolygons)
         {
-            EmitPolygon(scene, poly, triangles, usedTextures);
+            if (IsVisible(scene.Camera, poly.Shape))
+            {
+                worldDrawables.Add(WorldDrawable.FromPolygon(poly, sequence++));
+            }
+        }
+
+        foreach (var drawable in worldDrawables
+                     .OrderBy(item => item.Layer)
+                     .ThenBy(item => item.SortKey)
+                     .ThenBy(item => item.Sequence))
+        {
+            switch (drawable.Kind)
+            {
+                case WorldDrawableKind.Sprite:
+                    EmitWorldSprite(scene, drawable.Sprite!, triangles, usedTextures);
+                    break;
+                case WorldDrawableKind.Animated:
+                {
+                    var anim = drawable.Animated!;
+                    var rect = anim.Clip.GetSourceRect(anim.CurrentFrameIndex);
+                    EmitWorldQuad(
+                        scene,
+                        anim.Clip.Sheet.Texture,
+                        rect,
+                        anim.Transform,
+                        Rgba32.White,
+                        triangles,
+                        usedTextures,
+                        anim.ReceivesLighting);
+                    break;
+                }
+                case WorldDrawableKind.Polygon:
+                    EmitPolygon(scene, drawable.Polygon!, triangles, usedTextures);
+                    break;
+            }
         }
 
         foreach (var element in scene.Hud.Elements)
@@ -84,10 +126,7 @@ public static class PlanarSceneTessellator
                 continue;
             }
 
-            var info = scene.Textures.GetInfo(handle);
-            var pixels = new Rgba32[info.Width * info.Height];
-            scene.Textures.CopyPixels(handle, pixels, out _, out _);
-            blobs.Add(new PlanarTextureBlob(id, info.Width, info.Height, pixels));
+            blobs.Add(scene.Textures.GetBlob(handle));
         }
 
         return new PlanarDrawList
@@ -105,7 +144,15 @@ public static class PlanarSceneTessellator
         PlanarSpriteInstance sprite,
         List<PlanarTriangle> triangles,
         HashSet<int> usedTextures) =>
-        EmitWorldQuad(scene, sprite.Texture, sprite.SourceRect, sprite.Transform, sprite.Tint, triangles, usedTextures);
+        EmitWorldQuad(
+            scene,
+            sprite.Texture,
+            sprite.SourceRect,
+            sprite.Transform,
+            sprite.Tint,
+            triangles,
+            usedTextures,
+            sprite.ReceivesLighting);
 
     private static void EmitWorldQuad(
         PlanarScene scene,
@@ -114,7 +161,8 @@ public static class PlanarSceneTessellator
         PlanarTransform transform,
         Rgba32 tint,
         List<PlanarTriangle> triangles,
-        HashSet<int> usedTextures)
+        HashSet<int> usedTextures,
+        bool receivesLighting)
     {
         if (!texture.IsValid)
         {
@@ -134,7 +182,7 @@ public static class PlanarSceneTessellator
             (u0, u1) = (u1, u0);
         }
 
-        var corners = new Vector3[]
+        var worldCorners = new Vector3[]
         {
             new(-w * 0.5f, 0f, -h * 0.5f),
             new(w * 0.5f, 0f, -h * 0.5f),
@@ -142,11 +190,17 @@ public static class PlanarSceneTessellator
             new(w * 0.5f, 0f, h * 0.5f),
         };
         var rot = Matrix4x4.CreateRotationY(transform.RotationY);
-        for (var i = 0; i < corners.Length; i++)
+        var corners = new Vector3[worldCorners.Length];
+        var colors = new Rgba32[worldCorners.Length];
+        for (var i = 0; i < worldCorners.Length; i++)
         {
-            var local = Vector3.Transform(corners[i], rot);
+            var local = Vector3.Transform(worldCorners[i], rot);
             var world = new Vector3(local.X + cx, 0f, local.Z + cz);
+            worldCorners[i] = world;
             corners[i] = scene.Camera.WorldToScreen(world);
+            colors[i] = receivesLighting
+                ? scene.Lighting.Shade(world, tint)
+                : tint;
         }
 
         usedTextures.Add(texture.Value);
@@ -168,7 +222,10 @@ public static class PlanarSceneTessellator
             v0,
             u1,
             v0,
-            tint,
+            colors[0],
+            colors[1],
+            colors[2],
+            colors[3],
             texture.Value);
     }
 
@@ -199,10 +256,19 @@ public static class PlanarSceneTessellator
                 var vb = textured ? face.B.Z / meters : 0f;
                 var uc = textured ? face.C.X / meters : 0f;
                 var vc = textured ? face.C.Z / meters : 0f;
+                var colorA = poly.ReceivesLighting
+                    ? scene.Lighting.Shade(face.A, poly.FillColor)
+                    : poly.FillColor;
+                var colorB = poly.ReceivesLighting
+                    ? scene.Lighting.Shade(face.B, poly.FillColor)
+                    : poly.FillColor;
+                var colorC = poly.ReceivesLighting
+                    ? scene.Lighting.Shade(face.C, poly.FillColor)
+                    : poly.FillColor;
                 triangles.Add(new PlanarTriangle(
-                    new PlanarVertex(a.X, a.Z, ua, va, poly.FillColor),
-                    new PlanarVertex(b.X, b.Z, ub, vb, poly.FillColor),
-                    new PlanarVertex(c.X, c.Z, uc, vc, poly.FillColor),
+                    new PlanarVertex(a.X, a.Z, ua, va, colorA),
+                    new PlanarVertex(b.X, b.Z, ub, vb, colorB),
+                    new PlanarVertex(c.X, c.Z, uc, vc, colorC),
                     texId));
             }
         }
@@ -247,6 +313,44 @@ public static class PlanarSceneTessellator
             new PlanarVertex(b1.X, b1.Z, 0f, 0f, color),
             new PlanarVertex(a1.X, a1.Z, 0f, 0f, color),
             0));
+    }
+
+    private static bool IsVisible(PlanarViewport camera, Vector3 center, float radius)
+    {
+        var halfW = camera.ViewportWidth * 0.5f * camera.WorldUnitsPerPixel;
+        var halfH = camera.ViewportHeight * 0.5f * camera.WorldUnitsPerPixel;
+        return center.X + radius >= camera.Position.X - halfW
+            && center.X - radius <= camera.Position.X + halfW
+            && center.Z + radius >= camera.Position.Z - halfH
+            && center.Z - radius <= camera.Position.Z + halfH;
+    }
+
+    private static bool IsVisible(PlanarViewport camera, Novolis.Math.Topology.Polygon shape)
+    {
+        if (shape.Length == 0)
+        {
+            return false;
+        }
+
+        var minX = float.MaxValue;
+        var minZ = float.MaxValue;
+        var maxX = float.MinValue;
+        var maxZ = float.MinValue;
+        for (var i = 0; i < shape.Length; i++)
+        {
+            var vertex = shape[i];
+            minX = MathF.Min(minX, vertex.X);
+            minZ = MathF.Min(minZ, vertex.Z);
+            maxX = MathF.Max(maxX, vertex.X);
+            maxZ = MathF.Max(maxZ, vertex.Z);
+        }
+
+        var halfW = camera.ViewportWidth * 0.5f * camera.WorldUnitsPerPixel;
+        var halfH = camera.ViewportHeight * 0.5f * camera.WorldUnitsPerPixel;
+        return maxX >= camera.Position.X - halfW
+            && minX <= camera.Position.X + halfW
+            && maxZ >= camera.Position.Z - halfH
+            && minZ <= camera.Position.Z + halfH;
     }
 
     private static void EmitScreenTexturedQuad(
@@ -311,16 +415,110 @@ public static class PlanarSceneTessellator
         float v3,
         Rgba32 color,
         int textureId)
+        => AddQuad(
+            triangles,
+            x0,
+            y0,
+            x1,
+            y1,
+            x2,
+            y2,
+            x3,
+            y3,
+            u0,
+            v0,
+            u1,
+            v1,
+            u2,
+            v2,
+            u3,
+            v3,
+            color,
+            color,
+            color,
+            color,
+            textureId);
+
+    private static void AddQuad(
+        List<PlanarTriangle> triangles,
+        float x0,
+        float y0,
+        float x1,
+        float y1,
+        float x2,
+        float y2,
+        float x3,
+        float y3,
+        float u0,
+        float v0,
+        float u1,
+        float v1,
+        float u2,
+        float v2,
+        float u3,
+        float v3,
+        Rgba32 color0,
+        Rgba32 color1,
+        Rgba32 color2,
+        Rgba32 color3,
+        int textureId)
     {
         triangles.Add(new PlanarTriangle(
-            new PlanarVertex(x0, y0, u0, v0, color),
-            new PlanarVertex(x2, y2, u2, v2, color),
-            new PlanarVertex(x1, y1, u1, v1, color),
+            new PlanarVertex(x0, y0, u0, v0, color0),
+            new PlanarVertex(x2, y2, u2, v2, color2),
+            new PlanarVertex(x1, y1, u1, v1, color1),
             textureId));
         triangles.Add(new PlanarTriangle(
-            new PlanarVertex(x1, y1, u1, v1, color),
-            new PlanarVertex(x2, y2, u2, v2, color),
-            new PlanarVertex(x3, y3, u3, v3, color),
+            new PlanarVertex(x1, y1, u1, v1, color1),
+            new PlanarVertex(x2, y2, u2, v2, color2),
+            new PlanarVertex(x3, y3, u3, v3, color3),
             textureId));
+    }
+
+    private readonly record struct WorldDrawable(
+        PlanarDrawLayer Layer,
+        int SortKey,
+        int Sequence,
+        WorldDrawableKind Kind,
+        PlanarSpriteInstance? Sprite,
+        PlanarAnimatedSprite? Animated,
+        PlanarStaticPolygon? Polygon)
+    {
+        public static WorldDrawable FromSprite(PlanarSpriteInstance sprite, int sequence) =>
+            new(
+                sprite.Layer,
+                sprite.SortKey,
+                sequence,
+                WorldDrawableKind.Sprite,
+                sprite,
+                null,
+                null);
+
+        public static WorldDrawable FromAnimated(PlanarAnimatedSprite animated, int sequence) =>
+            new(
+                animated.Layer,
+                animated.SortKey,
+                sequence,
+                WorldDrawableKind.Animated,
+                null,
+                animated,
+                null);
+
+        public static WorldDrawable FromPolygon(PlanarStaticPolygon polygon, int sequence) =>
+            new(
+                polygon.Layer,
+                polygon.SortKey,
+                sequence,
+                WorldDrawableKind.Polygon,
+                null,
+                null,
+                polygon);
+    }
+
+    private enum WorldDrawableKind
+    {
+        Sprite,
+        Animated,
+        Polygon,
     }
 }

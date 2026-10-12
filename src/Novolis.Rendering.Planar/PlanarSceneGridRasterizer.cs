@@ -11,8 +11,11 @@ public static class PlanarSceneGridRasterizer
     private static readonly PlanarDrawLayer[] LayerOrder =
     [
         PlanarDrawLayer.Background,
+        PlanarDrawLayer.BehindWorld,
         PlanarDrawLayer.World,
+        PlanarDrawLayer.Actor,
         PlanarDrawLayer.Foreground,
+        PlanarDrawLayer.Additive,
         PlanarDrawLayer.Hud,
         PlanarDrawLayer.Menu,
     ];

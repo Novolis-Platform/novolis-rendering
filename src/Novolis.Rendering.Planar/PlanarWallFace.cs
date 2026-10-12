@@ -1,4 +1,5 @@
 using System.Numerics;
+using Novolis.Math.Geometry;
 
 namespace Novolis.Rendering.Planar;
 
@@ -7,6 +8,9 @@ public sealed class PlanarWallFace
 {
     /// <summary>Scene polygon (fill/texture/sort live here).</summary>
     public required PlanarStaticPolygon Polygon { get; init; }
+
+    /// <summary>Unfaded face tint restored on every occlusion update.</summary>
+    public Rgba32 BaseFillColor { get; init; } = Rgba32.White;
 
     /// <summary>Footprint edge start.</summary>
     public required Vector3 A { get; init; }
