@@ -6,13 +6,34 @@ namespace Novolis.Rendering.Planar;
 /// <summary>Static world polygon for platforms, pipes, and blocks.</summary>
 public sealed class PlanarStaticPolygon
 {
+    private readonly float _minX;
+    private readonly float _minZ;
+    private readonly float _maxX;
+    private readonly float _maxZ;
+
     /// <summary>Creates a static polygon with optional fill and outline.</summary>
     /// <param name="shape">World-space vertices (planar XZ).</param>
     /// <param name="fillColor">Fill color when <see cref="DrawFilled"/> is true.</param>
     public PlanarStaticPolygon(TopologyPolygon shape, Rgba32 fillColor)
     {
+        ArgumentNullException.ThrowIfNull(shape);
         Shape = shape;
         FillColor = fillColor;
+        if (shape.Length == 0)
+        {
+            return;
+        }
+
+        _minX = _maxX = shape[0].X;
+        _minZ = _maxZ = shape[0].Z;
+        for (var i = 1; i < shape.Length; i++)
+        {
+            var vertex = shape[i];
+            _minX = MathF.Min(_minX, vertex.X);
+            _minZ = MathF.Min(_minZ, vertex.Z);
+            _maxX = MathF.Max(_maxX, vertex.X);
+            _maxZ = MathF.Max(_maxZ, vertex.Z);
+        }
     }
 
     /// <summary>World-space polygon.</summary>
@@ -47,4 +68,14 @@ public sealed class PlanarStaticPolygon
 
     /// <summary>Sort key within the layer.</summary>
     public int SortKey { get; set; }
+
+    internal bool Intersects(PlanarViewport camera)
+    {
+        var halfW = camera.ViewportWidth * 0.5f * camera.WorldUnitsPerPixel;
+        var halfH = camera.ViewportHeight * 0.5f * camera.WorldUnitsPerPixel;
+        return _maxX >= camera.Position.X - halfW
+            && _minX <= camera.Position.X + halfW
+            && _maxZ >= camera.Position.Z - halfH
+            && _minZ <= camera.Position.Z + halfH;
+    }
 }

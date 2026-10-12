@@ -24,6 +24,22 @@ public sealed class PlanarSceneTessellatorTests
     }
 
     [Test]
+    public async Task Tessellate_culls_static_geometry_outside_the_viewport()
+    {
+        var scene = new PlanarScene();
+        scene.Camera.Position = System.Numerics.Vector3.Zero;
+        scene.Camera.WorldUnitsPerPixel = 1f / 32f;
+        scene.StaticPolygons.Add(
+            new PlanarStaticPolygon(
+                PlanarScenePrimitives.Rectangle(100f, 100f, 104f, 104f),
+                Rgba32.White));
+
+        var list = scene.Tessellate(320, 180);
+
+        await Assert.That(list.Triangles.Length).IsEqualTo(0);
+    }
+
+    [Test]
     public async Task Tessellate_includes_registered_sprite_texture()
     {
         var scene = new PlanarScene();

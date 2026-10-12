@@ -47,16 +47,25 @@ public static class PlanarSceneTessellator
 
         foreach (var poly in scene.StaticPolygons)
         {
-            if (IsVisible(scene.Camera, poly.Shape))
+            if (poly.Intersects(scene.Camera))
             {
                 worldDrawables.Add(WorldDrawable.FromPolygon(poly, sequence++));
             }
         }
 
-        foreach (var drawable in worldDrawables
-                     .OrderBy(item => item.Layer)
-                     .ThenBy(item => item.SortKey)
-                     .ThenBy(item => item.Sequence))
+        worldDrawables.Sort(static (left, right) =>
+        {
+            var layer = left.Layer.CompareTo(right.Layer);
+            if (layer != 0)
+            {
+                return layer;
+            }
+
+            var sort = left.SortKey.CompareTo(right.SortKey);
+            return sort != 0 ? sort : left.Sequence.CompareTo(right.Sequence);
+        });
+
+        foreach (var drawable in worldDrawables)
         {
             switch (drawable.Kind)
             {
@@ -182,16 +191,14 @@ public static class PlanarSceneTessellator
             (u0, u1) = (u1, u0);
         }
 
-        var worldCorners = new Vector3[]
-        {
-            new(-w * 0.5f, 0f, -h * 0.5f),
-            new(w * 0.5f, 0f, -h * 0.5f),
-            new(-w * 0.5f, 0f, h * 0.5f),
-            new(w * 0.5f, 0f, h * 0.5f),
-        };
+        Span<Vector3> worldCorners = stackalloc Vector3[4];
+        worldCorners[0] = new(-w * 0.5f, 0f, -h * 0.5f);
+        worldCorners[1] = new(w * 0.5f, 0f, -h * 0.5f);
+        worldCorners[2] = new(-w * 0.5f, 0f, h * 0.5f);
+        worldCorners[3] = new(w * 0.5f, 0f, h * 0.5f);
         var rot = Matrix4x4.CreateRotationY(transform.RotationY);
-        var corners = new Vector3[worldCorners.Length];
-        var colors = new Rgba32[worldCorners.Length];
+        Span<Vector3> corners = stackalloc Vector3[4];
+        Span<Rgba32> colors = stackalloc Rgba32[4];
         for (var i = 0; i < worldCorners.Length; i++)
         {
             var local = Vector3.Transform(worldCorners[i], rot);
@@ -250,6 +257,11 @@ public static class PlanarSceneTessellator
                 : default;
             foreach (var face in poly.Shape.FacesSpan)
             {
+                if (!IsVisible(scene.Camera, face.A, face.B, face.C))
+                {
+                    continue;
+                }
+
                 var a = scene.Camera.WorldToScreen(face.A);
                 var b = scene.Camera.WorldToScreen(face.B);
                 var c = scene.Camera.WorldToScreen(face.C);
@@ -283,6 +295,11 @@ public static class PlanarSceneTessellator
         {
             foreach (var edge in poly.Shape.EdgesSpan)
             {
+                if (!IsVisible(scene.Camera, edge.A, edge.B))
+                {
+                    continue;
+                }
+
                 EmitWorldLine(scene, edge.A, edge.B, 0.05f, poly.OutlineColor, triangles);
             }
         }
@@ -372,26 +389,31 @@ public static class PlanarSceneTessellator
             && center.Z - radius <= camera.Position.Z + halfH;
     }
 
-    private static bool IsVisible(PlanarViewport camera, Novolis.Math.Topology.Polygon shape)
+    private static bool IsVisible(PlanarViewport camera, Vector3 a, Vector3 b)
     {
-        if (shape.Length == 0)
-        {
-            return false;
-        }
+        var minX = MathF.Min(a.X, b.X);
+        var maxX = MathF.Max(a.X, b.X);
+        var minZ = MathF.Min(a.Z, b.Z);
+        var maxZ = MathF.Max(a.Z, b.Z);
+        return IntersectsViewport(camera, minX, maxX, minZ, maxZ);
+    }
 
-        var minX = float.MaxValue;
-        var minZ = float.MaxValue;
-        var maxX = float.MinValue;
-        var maxZ = float.MinValue;
-        for (var i = 0; i < shape.Length; i++)
-        {
-            var vertex = shape[i];
-            minX = MathF.Min(minX, vertex.X);
-            minZ = MathF.Min(minZ, vertex.Z);
-            maxX = MathF.Max(maxX, vertex.X);
-            maxZ = MathF.Max(maxZ, vertex.Z);
-        }
+    private static bool IsVisible(PlanarViewport camera, Vector3 a, Vector3 b, Vector3 c)
+    {
+        var minX = MathF.Min(a.X, MathF.Min(b.X, c.X));
+        var maxX = MathF.Max(a.X, MathF.Max(b.X, c.X));
+        var minZ = MathF.Min(a.Z, MathF.Min(b.Z, c.Z));
+        var maxZ = MathF.Max(a.Z, MathF.Max(b.Z, c.Z));
+        return IntersectsViewport(camera, minX, maxX, minZ, maxZ);
+    }
 
+    private static bool IntersectsViewport(
+        PlanarViewport camera,
+        float minX,
+        float maxX,
+        float minZ,
+        float maxZ)
+    {
         var halfW = camera.ViewportWidth * 0.5f * camera.WorldUnitsPerPixel;
         var halfH = camera.ViewportHeight * 0.5f * camera.WorldUnitsPerPixel;
         return maxX >= camera.Position.X - halfW
