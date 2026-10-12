@@ -245,17 +245,23 @@ public static class PlanarSceneTessellator
                 usedTextures.Add(texId);
             }
 
+            var wallProjection = textured
+                ? GetWallProjection(poly)
+                : default;
             foreach (var face in poly.Shape.FacesSpan)
             {
                 var a = scene.Camera.WorldToScreen(face.A);
                 var b = scene.Camera.WorldToScreen(face.B);
                 var c = scene.Camera.WorldToScreen(face.C);
-                var ua = textured ? face.A.X / meters : 0f;
-                var va = textured ? face.A.Z / meters : 0f;
-                var ub = textured ? face.B.X / meters : 0f;
-                var vb = textured ? face.B.Z / meters : 0f;
-                var uc = textured ? face.C.X / meters : 0f;
-                var vc = textured ? face.C.Z / meters : 0f;
+                var uvA = textured
+                    ? GetTextureCoordinates(face.A, meters, wallProjection)
+                    : Vector2.Zero;
+                var uvB = textured
+                    ? GetTextureCoordinates(face.B, meters, wallProjection)
+                    : Vector2.Zero;
+                var uvC = textured
+                    ? GetTextureCoordinates(face.C, meters, wallProjection)
+                    : Vector2.Zero;
                 var colorA = poly.ReceivesLighting
                     ? scene.Lighting.Shade(face.A, poly.FillColor)
                     : poly.FillColor;
@@ -266,9 +272,9 @@ public static class PlanarSceneTessellator
                     ? scene.Lighting.Shade(face.C, poly.FillColor)
                     : poly.FillColor;
                 triangles.Add(new PlanarTriangle(
-                    new PlanarVertex(a.X, a.Z, ua, va, colorA),
-                    new PlanarVertex(b.X, b.Z, ub, vb, colorB),
-                    new PlanarVertex(c.X, c.Z, uc, vc, colorC),
+                    new PlanarVertex(a.X, a.Z, uvA.X, uvA.Y, colorA),
+                    new PlanarVertex(b.X, b.Z, uvB.X, uvB.Y, colorB),
+                    new PlanarVertex(c.X, c.Z, uvC.X, uvC.Y, colorC),
                     texId));
             }
         }
@@ -313,6 +319,47 @@ public static class PlanarSceneTessellator
             new PlanarVertex(b1.X, b1.Z, 0f, 0f, color),
             new PlanarVertex(a1.X, a1.Z, 0f, 0f, color),
             0));
+    }
+
+    private static WallProjection GetWallProjection(PlanarStaticPolygon polygon)
+    {
+        if (polygon.WallPart != PlanarWallPartKind.Side || polygon.Shape.Length < 4)
+        {
+            return default;
+        }
+
+        var origin = polygon.Shape[0];
+        var u = polygon.Shape[1] - origin;
+        var v = polygon.Shape[3] - origin;
+        u.Y = 0f;
+        v.Y = 0f;
+        var uLength = MathF.Sqrt(u.X * u.X + u.Z * u.Z);
+        var vLength = MathF.Sqrt(v.X * v.X + v.Z * v.Z);
+        if (uLength <= 1e-5f || vLength <= 1e-5f)
+        {
+            return default;
+        }
+
+        return new WallProjection(
+            true,
+            origin,
+            u / uLength,
+            v / vLength,
+            vLength);
+    }
+
+    private static Vector2 GetTextureCoordinates(Vector3 point, float meters, WallProjection projection)
+    {
+        if (!projection.IsValid)
+        {
+            return new Vector2(point.X / meters, point.Z / meters);
+        }
+
+        var relative = point - projection.Origin;
+        relative.Y = 0f;
+        var u = (relative.X * projection.UAxis.X + relative.Z * projection.UAxis.Z) / meters;
+        var v = (relative.X * projection.VAxis.X + relative.Z * projection.VAxis.Z) / projection.VLength;
+        return new Vector2(u, v);
     }
 
     private static bool IsVisible(PlanarViewport camera, Vector3 center, float radius)
@@ -521,4 +568,11 @@ public static class PlanarSceneTessellator
         Animated,
         Polygon,
     }
+
+    private readonly record struct WallProjection(
+        bool IsValid,
+        Vector3 Origin,
+        Vector3 UAxis,
+        Vector3 VAxis,
+        float VLength);
 }

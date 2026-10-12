@@ -1,4 +1,5 @@
 using Novolis.Math.Geometry;
+using Novolis.Math.Topology;
 using Novolis.Rendering.Planar;
 
 namespace Novolis.Rendering.Unit.Planar;
@@ -71,6 +72,34 @@ public sealed class PlanarSceneTessellatorTests
 
         await Assert.That(list.Triangles[0].TextureId).IsEqualTo(polygonTexture.Value);
         await Assert.That(list.Triangles[2].TextureId).IsEqualTo(spriteTexture.Value);
+    }
+
+    [Test]
+    public async Task Tessellate_projects_wall_texture_across_the_wall_strip()
+    {
+        var scene = new PlanarScene();
+        var texture = scene.Textures.Solid(Rgba32.White, "wall");
+        scene.StaticPolygons.Add(
+            new PlanarStaticPolygon(
+                new Polygon(
+                [
+                    new System.Numerics.Vector3(0f, 0f, 0f),
+                    new System.Numerics.Vector3(4f, 0f, 0f),
+                    new System.Numerics.Vector3(4f, 0f, -0.1f),
+                    new System.Numerics.Vector3(0f, 0f, -0.1f),
+                ]),
+                Rgba32.White)
+            {
+                Texture = texture,
+                TextureMeters = 2f,
+                WallPart = PlanarWallPartKind.Side,
+            });
+
+        var list = scene.Tessellate(320, 180);
+        var vertices = list.Triangles.SelectMany(triangle => new[] { triangle.A, triangle.B, triangle.C }).ToArray();
+
+        await Assert.That(vertices.Any(vertex => MathF.Abs(vertex.V - 1f) < 0.001f)).IsTrue();
+        await Assert.That(vertices.Any(vertex => MathF.Abs(vertex.U - 2f) < 0.001f)).IsTrue();
     }
 
     [Test]
