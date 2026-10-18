@@ -2,9 +2,9 @@
 <ItemGroup>
     <PackageVersion Include="ILGPU" Version="1.5.3" />
     <PackageVersion Include="ILGPU.Algorithms" Version="1.5.3" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.12" />
-    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.401" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.402" />
     <PackageVersion Include="Novolis.Math.Arrays" Version="2026.1.*" />
     <PackageVersion Include="Novolis.Math.Geometry" Version="2026.1.*" />
     <PackageVersion Include="Novolis.Analyzers.StackBoundaries" Version="2026.1.*" />
@@ -13,6 +13,7 @@
     <PackageVersion Include="Novolis.Raylib.Runtime" Version="2026.1.*" />
     <PackageVersion Include="StbImageSharp" Version="2.30.16" />
     <PackageVersion Include="StbImageWriteSharp" Version="1.16.7" />
-    <PackageVersion Include="TUnit" Version="1.72.16" />
+    <PackageVersion Include="TUnit" Version="1.75.0" />
   </ItemGroup>
 </Project>
+
