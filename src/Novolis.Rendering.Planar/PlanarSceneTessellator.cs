@@ -18,13 +18,26 @@ public static class PlanarSceneTessellator
 
         var worldDrawables = new List<WorldDrawable>(
             scene.Sprites.Count
+            + scene.ParticleSprites.Count
             + scene.AnimatedSprites.Count
             + scene.StaticPolygons.Count);
         var sequence = 0;
         foreach (var sprite in scene.Sprites)
         {
-            if (!sprite.ScreenSpace
+            if (sprite.Enabled
+                && !sprite.ScreenSpace
                 && IsVisible(
+                    scene.Camera,
+                    sprite.Transform.Position,
+                    MathF.Max(MathF.Abs(sprite.Transform.Scale.X), MathF.Abs(sprite.Transform.Scale.Z))))
+            {
+                worldDrawables.Add(WorldDrawable.FromSprite(sprite, sequence++));
+            }
+        }
+
+        foreach (var sprite in scene.ParticleSprites)
+        {
+            if (IsVisible(
                     scene.Camera,
                     sprite.Transform.Position,
                     MathF.Max(MathF.Abs(sprite.Transform.Scale.X), MathF.Abs(sprite.Transform.Scale.Z))))

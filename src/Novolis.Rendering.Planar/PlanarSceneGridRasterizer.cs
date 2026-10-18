@@ -132,6 +132,11 @@ public static class PlanarSceneGridRasterizer
 
         foreach (var sprite in scene.Sprites)
         {
+            if (!sprite.Enabled)
+            {
+                continue;
+            }
+
             if (sprite.ScreenSpace)
             {
                 list.Add(new GridDrawable(
@@ -172,6 +177,27 @@ public static class PlanarSceneGridRasterizer
                     ScreenH: 0f,
                     HudText: null));
             }
+        }
+
+        foreach (var sprite in scene.ParticleSprites)
+        {
+            list.Add(new GridDrawable(
+                sprite.Layer,
+                sprite.SortKey,
+                GridDrawableKind.WorldSprite,
+                Shape: null,
+                sprite.Tint,
+                Outline: default,
+                Fill: true,
+                OutlineDraw: false,
+                sprite.Transform,
+                sprite.Texture,
+                sprite.SourceRect,
+                ScreenX: 0f,
+                ScreenY: 0f,
+                ScreenW: 0f,
+                ScreenH: 0f,
+                HudText: null));
         }
 
         foreach (var anim in scene.AnimatedSprites)

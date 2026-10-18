@@ -7,16 +7,64 @@ namespace Novolis.Rendering.Planar;
 public sealed class PlanarCollisionWorld
 {
     private readonly List<PlanarCollider> _static = [];
+    private readonly Dictionary<(int X, int Z), List<int>> _cells = [];
+    private int[] _queryMarks = [];
+    private int _queryStamp;
+    private const float BroadPhaseCellSize = 4f;
 
     /// <summary>Registered static colliders (platforms, blocks, pipes).</summary>
     public IReadOnlyList<PlanarCollider> StaticColliders => _static;
 
     /// <summary>Adds a static collider.</summary>
     /// <param name="collider">Collider to register.</param>
-    public void AddStatic(PlanarCollider collider) => _static.Add(collider);
+    public void AddStatic(PlanarCollider collider)
+    {
+        ArgumentNullException.ThrowIfNull(collider);
+        var index = _static.Count;
+        _static.Add(collider);
+        EnsureQueryCapacity();
+
+        if (collider.Shape.Length == 0)
+        {
+            return;
+        }
+
+        var minX = collider.Shape[0].X;
+        var maxX = minX;
+        var minZ = collider.Shape[0].Z;
+        var maxZ = minZ;
+        for (var i = 1; i < collider.Shape.Length; i++)
+        {
+            var vertex = collider.Shape[i];
+            minX = MathF.Min(minX, vertex.X);
+            maxX = MathF.Max(maxX, vertex.X);
+            minZ = MathF.Min(minZ, vertex.Z);
+            maxZ = MathF.Max(maxZ, vertex.Z);
+        }
+
+        for (var x = ToCell(minX); x <= ToCell(maxX); x++)
+        {
+            for (var z = ToCell(minZ); z <= ToCell(maxZ); z++)
+            {
+                if (!_cells.TryGetValue((x, z), out var cell))
+                {
+                    cell = [];
+                    _cells[(x, z)] = cell;
+                }
+
+                cell.Add(index);
+            }
+        }
+    }
 
     /// <summary>Clears all static colliders.</summary>
-    public void Clear() => _static.Clear();
+    public void Clear()
+    {
+        _static.Clear();
+        _cells.Clear();
+        _queryMarks = [];
+        _queryStamp = 0;
+    }
 
     /// <summary>Whether a world point lies inside any solid collider.</summary>
     /// <param name="position">World position (Y ignored).</param>
@@ -43,16 +91,35 @@ public sealed class PlanarCollisionWorld
     /// <param name="radius">Circle radius in world units.</param>
     public bool Overlaps(Vector3 position, float radius)
     {
-        foreach (var c in _static)
+        var stamp = NextQueryStamp();
+        var minX = ToCell(position.X - radius);
+        var maxX = ToCell(position.X + radius);
+        var minZ = ToCell(position.Z - radius);
+        var maxZ = ToCell(position.Z + radius);
+        for (var x = minX; x <= maxX; x++)
         {
-            if (c.IsTrigger)
+            for (var z = minZ; z <= maxZ; z++)
             {
-                continue;
-            }
+                if (!_cells.TryGetValue((x, z), out var cell))
+                {
+                    continue;
+                }
 
-            if (PlanarCollision.CircleOverlaps(c.Shape, position.X, position.Z, radius))
-            {
-                return true;
+                foreach (var index in cell)
+                {
+                    if (_queryMarks[index] == stamp)
+                    {
+                        continue;
+                    }
+
+                    _queryMarks[index] = stamp;
+                    var collider = _static[index];
+                    if (!collider.IsTrigger
+                        && PlanarCollision.CircleOverlaps(collider.Shape, position.X, position.Z, radius))
+                    {
+                        return true;
+                    }
+                }
             }
         }
 
@@ -97,4 +164,28 @@ public sealed class PlanarCollisionWorld
 
         return position + axisDelta * lo;
     }
+
+    private int NextQueryStamp()
+    {
+        if (++_queryStamp == int.MaxValue)
+        {
+            Array.Clear(_queryMarks);
+            _queryStamp = 1;
+        }
+
+        return _queryStamp;
+    }
+
+    private void EnsureQueryCapacity()
+    {
+        if (_queryMarks.Length >= _static.Count)
+        {
+            return;
+        }
+
+        Array.Resize(ref _queryMarks, _static.Count);
+    }
+
+    private static int ToCell(float value) =>
+        (int)MathF.Floor(value / BroadPhaseCellSize);
 }

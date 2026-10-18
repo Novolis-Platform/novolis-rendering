@@ -28,6 +28,9 @@ public sealed class PlanarScene
     /// <summary>Static sprites and backgrounds.</summary>
     public List<PlanarSpriteInstance> Sprites { get; } = [];
 
+    /// <summary>Reusable cosmetic particle sprites kept separate from gameplay sprites.</summary>
+    public List<PlanarSpriteInstance> ParticleSprites { get; } = [];
+
     /// <summary>Animated characters and props.</summary>
     public List<PlanarAnimatedSprite> AnimatedSprites { get; } = [];
 

@@ -5,6 +5,9 @@ namespace Novolis.Rendering.Planar;
 /// <summary>Single textured quad in the world or screen space.</summary>
 public sealed class PlanarSpriteInstance
 {
+    /// <summary>Whether this pooled sprite participates in the frame.</summary>
+    public bool Enabled { get; set; } = true;
+
     /// <summary>World or screen transform.</summary>
     public PlanarTransform Transform { get; set; } = new();
 
