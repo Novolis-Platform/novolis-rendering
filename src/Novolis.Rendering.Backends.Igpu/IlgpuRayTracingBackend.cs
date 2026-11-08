@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Runtime.InteropServices;
 using ILGPU;
 using ILGPU.Runtime;
 using Novolis.Math.Geometry;
@@ -328,14 +329,8 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
 
         _accelerator!.Synchronize();
         _displayGpu.CopyToCPU(_displayBytes);
-        var pixels = _display.Pixels;
-        var bytes = _displayBytes;
-        for (var i = 0; i < pixels.Length; i++)
-        {
-            var o = i * 4;
-            pixels[i] = new Rgba32(bytes[o], bytes[o + 1], bytes[o + 2], bytes[o + 3]);
-        }
-
+        MemoryMarshal.Cast<byte, Rgba32>(_displayBytes.AsSpan())
+            .CopyTo(_display.Pixels);
         _gpuDisplayDirty = false;
     }
 

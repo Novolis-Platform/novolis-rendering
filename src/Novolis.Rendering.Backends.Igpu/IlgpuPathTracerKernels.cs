@@ -8,7 +8,8 @@ namespace Novolis.Rendering.Backends.Igpu;
 /// <summary>GPU path tracing kernels (iterative; ILGPU does not support recursive device methods).</summary>
 internal static class IlgpuPathTracerKernels
 {
-    private const int MaxDepth = 4;
+    // Interactive GPU path: one fewer bounce than the CPU reference (depth 4) for glass/metal cost.
+    private const int MaxDepth = 3;
     private const float Epsilon = 1e-4f;
     private const int MaxLights = 8;
     private const int BvhStackCapacity = 64;
