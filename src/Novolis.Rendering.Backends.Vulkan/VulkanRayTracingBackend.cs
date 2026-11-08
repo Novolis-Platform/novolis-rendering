@@ -6,14 +6,16 @@ using Novolis.Rendering.Runtime;
 namespace Novolis.Rendering.Backends.Vulkan;
 
 /// <summary>
-/// Path-tracing backend. GPU Vulkan/Shaderc now lives in <c>Novolis.Silk.Compute</c>;
-/// this type keeps the <see cref="IRayTracingBackend"/> contract via CPU fallback.
+/// <see cref="IRayTracingBackend"/> contract shim for labs that cycle a "Vulkan" backend.
+/// Rendering cannot reference Silk.NET (<c>NOV2016</c>); real Vulkan/Shaderc is
+/// <c>Novolis.Silk.Compute</c>, composed only at the GAME layer. Tracing here is CPU.
 /// </summary>
 public sealed class VulkanRayTracingBackend : IRayTracingBackend, IDisposable
 {
     private readonly CpuRayTracingBackend _cpu;
 
-    /// <summary>Creates a CPU-backed backend (Silk compute upload is composed in apps).</summary>
+    /// <summary>Creates the CPU-backed Vulkan-labeled shim.</summary>
+    /// <param name="deterministic">When true, matches <see cref="CpuRayTracingBackend"/> goldens.</param>
     public VulkanRayTracingBackend(bool deterministic = false) =>
         _cpu = new CpuRayTracingBackend(deterministic);
 

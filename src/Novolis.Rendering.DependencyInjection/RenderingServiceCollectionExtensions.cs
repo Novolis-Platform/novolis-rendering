@@ -39,7 +39,12 @@ public static class RenderingServiceCollectionExtensions
         return services;
     }
 
-    /// <summary>Registers the Vulkan compute backend.</summary>
+    /// <summary>
+    /// Registers <see cref="VulkanRayTracingBackend"/> — an <see cref="IRayTracingBackend"/> contract shim
+    /// that traces on CPU. Real Vulkan/Shaderc lives in <c>Novolis.Silk.Compute</c> (Silk closed island);
+    /// GAME hosts compose Silk + Rendering pixels. Prefer <see cref="UseCpuBackend"/> or
+    /// <see cref="UseIlgpuBackend"/> unless you need the Vulkan label for lab cycling.
+    /// </summary>
     /// <param name="services">Service collection.</param>
     /// <returns>The same <paramref name="services"/> for chaining.</returns>
     public static IServiceCollection UseVulkanBackend(this IServiceCollection services)

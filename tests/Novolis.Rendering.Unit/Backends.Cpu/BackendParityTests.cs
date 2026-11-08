@@ -15,7 +15,7 @@ public sealed class BackendParityTests
         var scene = DemoSceneFactory.UnitCubeRoom();
         var camera = CameraSnapshot.LookAt(
             new(1.2f, 0.8f, 2f),
-            new(0f, 0.2f, 0f),
+            System.Numerics.Vector3.Zero,
             System.Numerics.Vector3.UnitY,
             55f,
             32f / 24f);
@@ -24,13 +24,16 @@ public sealed class BackendParityTests
         await cpu.ResizeAsync(32, 24);
         await cpu.UploadSceneAsync(scene);
         await cpu.RenderAsync(camera, 0);
+        await cpu.RenderAsync(camera, 1);
 
         using var igpu = new IlgpuRayTracingBackend(deterministic: true);
         await igpu.ResizeAsync(32, 24);
         await igpu.UploadSceneAsync(scene);
         await igpu.RenderAsync(camera, 0);
+        await igpu.RenderAsync(camera, 1);
 
-        await Assert.That(FramebufferGoldenAssert.Sha256Hex(igpu.Output))
-            .IsEqualTo(FramebufferGoldenAssert.Sha256Hex(cpu.Output));
+        var hash = FramebufferGoldenAssert.Sha256Hex(cpu.Output);
+        await Assert.That(FramebufferGoldenAssert.Sha256Hex(igpu.Output)).IsEqualTo(hash);
+        await Assert.That(hash).IsEqualTo("c1a70204381dc978ad82c8a866bf68ec4bce477cf21663265300ae13d893fc6c");
     }
 }

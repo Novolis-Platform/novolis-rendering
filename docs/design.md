@@ -2,54 +2,52 @@
 
 ## Role
 
-`novolis-rendering` produces **CPU framebuffers** (`Rgba32` pixels). It is not a game engine and does not replace `novolis-raylib` (GPU host) or `novolis-simulation` (worlds, clocks, cameras).
+`novolis-rendering` owns **authoring → compile → trace** for CPU (and ILGPU) path tracing, plus planar tessellation and appearance helpers. It does **not** open windows or reference Silk.NET / Raylib outside the blessed `Presentation.Raylib` blit adapter.
 
 ## Dependency rules
 
 ```text
-novolis-math (Geometry)  →  novolis-rendering
-novolis-rendering        ⊥  novolis-raylib
-novolis-rendering        ⊥  novolis-silk
-novolis-rendering        ⊥  novolis-simulation
+novolis-math (Geometry, BVH)  →  novolis-rendering
+novolis-rendering             ⊥  novolis-raylib   (except Presentation.Raylib → Raylib.Runtime)
+novolis-rendering             ⊥  novolis-silk     (NOV2016; handshake = Math/BCL pixels)
+novolis-rendering             ⊥  novolis-simulation
 ```
 
-Apps may reference any combination and own glue:
+Apps glue:
 
 ```text
-Simulation.View (ViewPose) → RenderCamera → IRayTracer → ImageBuffer → Raylib/Silk presenter
+Simulation.View (ViewPose) → CameraSnapshot → IRayTracingBackend → IFramePresenter / SilkFrame.Blit
 ```
 
-## Packages
+## Path-trace packages (shipped)
 
-| Package | Depends on | Owns |
-|---------|------------|------|
-| `Novolis.Rendering.Abstractions` | `Novolis.Math.Geometry` | Buffers, camera, scene DTOs, `IRayTracer` |
-| `Novolis.Rendering.Raytrace` | Abstractions, Math | `CpuRayTracer`, intersection helpers |
-| `Novolis.Rendering` | Facets above | Meta / convenience reference |
-| `Novolis.Rendering.Planar` | Math.Geometry, Math.Topology | 2D scene, sprites, collision, HUD, menus, tessellate |
+| Package | Owns |
+|---------|------|
+| `Novolis.Rendering.Materials` | `IMaterial` presets → `GpuMaterial` |
+| `Novolis.Rendering.Scene` | Authoring `Scene` / builders |
+| `Novolis.Rendering.Compile` | `SceneCompiler` → `CompiledScene` + BVH |
+| `Novolis.Rendering.Runtime` | `IRayTracingBackend`, `CompiledScene`, GPU structs |
+| `Novolis.Rendering.Backends.Cpu` | Progressive CPU path tracer (golden reference) |
+| `Novolis.Rendering.Backends.Igpu` | ILGPU kernels + CPU fallback |
+| `Novolis.Rendering.Backends.Vulkan` | **CPU contract shim** — real Vulkan/Shaderc in `Novolis.Silk.Compute` |
+| `Novolis.Rendering.Presentation.Abstractions` | `IFramePresenter`, `IRenderOutput` |
+| `Novolis.Rendering.Presentation.Raylib` | CPU frame blit to Raylib |
+| `Novolis.Rendering.DependencyInjection` | `AddRayTracing` / `Use*Backend` |
+| `Novolis.Rendering.PathTrace.Demos` | Studio scenes + background worker |
+| `Novolis.Rendering.Testing` | SHA-256 golden hashes (no window) |
 
-See **[design-planar.md](design-planar.md)** for the Mario-style planar stack.
+Planar stack: **[design-planar.md](design-planar.md)**. Roadmap closure: **[roadmap-raytracing.md](roadmap-raytracing.md)**.
 
-## Roadmap
+## Presentation
 
-Full phased plan (materials, compile pipeline, backends, Raylib/Silk presenters):
-
-**[roadmap-raytracing.md](roadmap-raytracing.md)**
-
-## Presentation (out of scope in core packages)
-
-Optional host packages — **no scene/material types**:
-
-- `Novolis.Rendering.Presentation.Raylib` — `IFramePresenter` → Raylib texture blit
-- `Novolis.Silk` — GLFW/OpenGL blit of CPU pixels or tessellated quads (`novolis-silk`)
-
-Golden tests for the tracer use PNG hashes over CPU pixels without native Raylib.
+- Raylib: `RaylibCpuFramePresenter`
+- Silk: compose in GAME — `SilkFrame.Blit` / `Submit` (no Rendering→Silk package)
 
 ## Acceleration
 
-`CpuRayTracer` v1 uses brute-force triangle tests. BVH traversal may move to Math (shared with Physics collision) without changing `IRayTracer`.
+BVH lives in `Novolis.Math.Geometry` (`TriangleBvhBuilder`); Compile emits runtime nodes for backends.
 
 ## Related
 
 - [library-boundaries.md](https://github.com/Novolis-Platform/novolis-governance/blob/main/docs/library-boundaries.md)
-- [novolis-raylib](https://github.com/Novolis-Platform/novolis-raylib) — display path
+- Labs: `SilkTraceStudio`, `SilkTraceHello`, `RaytraceHello`, `MeshBench`

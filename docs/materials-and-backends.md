@@ -39,6 +39,14 @@ public interface IRayTracingBackend
 
 Progressive rendering: accumulate samples; display = average.
 
+| Backend | Reality |
+|---------|---------|
+| `Backends.Cpu` | Reference progressive path tracer (deterministic goldens) |
+| `Backends.Igpu` | ILGPU kernels; falls back to CPU when needed |
+| `Backends.Vulkan` | CPU shim keeping the contract; SPIR-V/Vulkan live in `Novolis.Silk.Compute` |
+
+DI: `services.AddRayTracing().UseCpuBackend(deterministic: true)` (or `UseIlgpuBackend` / `UseVulkanBackend`).
+
 ## Presentation (separate packages)
 
 `IFramePresenter.PresentCpuFrame(ReadOnlySpan<Rgba32>, width, height)` — implemented in `Novolis.Rendering.Presentation.Raylib` or a `Novolis.Silk` compose host. **No scene types in host presenter packages.**

@@ -1,7 +1,6 @@
 using System.Numerics;
 using Novolis.Rendering.Backends.Cpu;
 using Novolis.Rendering.Backends.Vulkan;
-using Novolis.Rendering.Presentation.Abstractions;
 using Novolis.Rendering.Runtime;
 using Novolis.Rendering.Testing;
 using TUnit.Core;
@@ -11,34 +10,39 @@ namespace Novolis.Rendering.Backends.Vulkan.Tests;
 public sealed class VulkanRayTracingBackendTests
 {
     [Test]
-    public async Task RenderAsync_ExposesCpuBackedGpuSurface()
+    public async Task BackendLabel_DocumentsCpuFallback_BecauseSilkOwnsVulkan()
     {
         using var backend = new VulkanRayTracingBackend();
-        if (backend.BackendLabel.Contains("fallback", StringComparison.Ordinal))
-        {
-            return;
-        }
+        await Assert.That(backend.BackendLabel).IsEqualTo("Vulkan (CPU fallback)");
+        await Assert.That(backend.GpuSurface).IsNull();
+    }
 
+    [Test]
+    public async Task Deterministic_MatchesCpu_OnGoldenFrame()
+    {
         var scene = DemoSceneFactory.UnitCubeRoom();
         var camera = CameraSnapshot.LookAt(
             new Vector3(1.2f, 0.8f, 2f),
-            new Vector3(0f, 0.2f, 0f),
+            Vector3.Zero,
             Vector3.UnitY,
             55f,
-            1f);
+            32f / 24f);
 
-        await backend.ResizeAsync(8, 8);
-        await backend.UploadSceneAsync(scene);
-        await backend.RenderAsync(camera, 0);
+        var cpu = new CpuRayTracingBackend(deterministic: true);
+        await cpu.ResizeAsync(32, 24);
+        await cpu.UploadSceneAsync(scene);
+        await cpu.RenderAsync(camera, 0);
+        await cpu.RenderAsync(camera, 1);
 
-        await Assert.That(backend.GpuSurface).IsNotNull();
-        await Assert.That(backend.GpuSurface).IsTypeOf<ICpuBackedGpuSurface>();
-        var surface = (ICpuBackedGpuSurface)backend.GpuSurface!;
-        var hasPixels = surface.TryGetCpuPixels(out _, out var w, out var h);
-        await Assert.That(hasPixels).IsTrue();
-        await Assert.That(w).IsEqualTo(8);
-        await Assert.That(h).IsEqualTo(8);
-        await Assert.That(backend.BackendLabel).StartsWith("Vulkan");
-        await Assert.That(surface.NativeHandle).IsNotEqualTo(nint.Zero);
+        using var vulkan = new VulkanRayTracingBackend(deterministic: true);
+        await vulkan.ResizeAsync(32, 24);
+        await vulkan.UploadSceneAsync(scene);
+        await vulkan.RenderAsync(camera, 0);
+        await vulkan.RenderAsync(camera, 1);
+
+        await Assert.That(FramebufferGoldenAssert.Sha256Hex(vulkan.Output))
+            .IsEqualTo(FramebufferGoldenAssert.Sha256Hex(cpu.Output));
+        await Assert.That(FramebufferGoldenAssert.Sha256Hex(vulkan.Output))
+            .IsEqualTo("c1a70204381dc978ad82c8a866bf68ec4bce477cf21663265300ae13d893fc6c");
     }
 }

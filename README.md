@@ -88,7 +88,7 @@ Scene + IMaterial  →  SceneCompiler  →  CompiledScene
 | `Novolis.Rendering.Runtime` | `CompiledScene`, `CameraSnapshot`, `IRayTracingBackend` |
 | `Novolis.Rendering.Backends.Cpu` | CPU path tracer (progressive accumulation) |
 | `Novolis.Rendering.Backends.Igpu` | ILGPU GPU path tracer (CPU fallback when no GPU or `deterministic: true`) |
-| `Novolis.Rendering.Backends.Vulkan` | Vulkan compute path tracing (SPIR-V) |
+| `Novolis.Rendering.Backends.Vulkan` | `IRayTracingBackend` CPU shim (real Vulkan/Shaderc → `Novolis.Silk.Compute`) |
 | `Novolis.Rendering.DependencyInjection` | `AddRayTracing()`, `UseCpuBackend()` |
 | `Novolis.Rendering.PathTrace.Demos` | Shared demo scenes, workers, display buffer |
 | `Novolis.Rendering.Presentation.Raylib` | Raylib CPU frame presenter |
@@ -101,15 +101,10 @@ Normative API: [docs/materials-and-backends.md](docs/materials-and-backends.md).
 ## Build
 
 ```powershell
-cd d:\novolis\novolis-math
-.\scripts\pack-local.ps1
-cd d:\novolis\novolis-rendering
-.\scripts\ci-pack-dependencies.ps1   # or pack-local.ps1 for full stack
-dotnet build Novolis.Rendering.slnx -c Release
-dotnet run --project tests/Novolis.Rendering.Backends.Cpu.Tests -c Release
+dotnet test d:\novolis\novolis-rendering\tests\Novolis.Rendering.Unit\Novolis.Rendering.Unit.csproj -p:NovolisUseProjectReferences=true
 ```
 
-CI checks out `novolis-math` and runs `scripts/ci-pack-dependencies.ps1` before restore.
+Path-trace labs: `d:\novolis\novolis-lab\labs\rendering\SilkTraceStudio`, `RaytraceHello`, `SilkTraceHello`.
 
 ## Compose with Raylib (app layer)
 
@@ -125,7 +120,7 @@ if (backend.Output.TryGetCpuPixels(out var pixels, out var w, out var h))
     presenter.PresentCpuFrame(pixels, w, h);
 ```
 
-Dogfood sample: [novolis-dogfooding/apps/RaytraceHello](../novolis-dogfooding/apps/RaytraceHello).
+Labs: `novolis-lab/labs/rendering/RaytraceHello`, `SilkTraceHello`, `SilkTraceStudio`, `MeshBench`.
 
 ## Policy
 
