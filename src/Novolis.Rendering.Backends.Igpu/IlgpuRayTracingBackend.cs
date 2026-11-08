@@ -16,11 +16,11 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
     private readonly CpuRayTracingBackend? _cpuFallback;
     private readonly Context? _context;
     private readonly Accelerator? _accelerator;
-    private readonly ImageBufferRenderOutput _output = new();
+    private readonly DeferredGpuRenderOutput _deferredOutput;
     private readonly object _renderLock = new();
 
     private ImageBuffer? _display;
-    private Float3[]? _accumulationCpu;
+    private byte[]? _displayBytes;
     private MemoryBuffer1D<Float3, Stride1D.Dense>? _accumulationGpu;
     private MemoryBuffer1D<byte, Stride1D.Dense>? _displayGpu;
     private MemoryBuffer1D<GpuTriangle, Stride1D.Dense>? _trianglesGpu;
@@ -34,6 +34,7 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
     private int _height;
     private int _bvhRootIndex = -1;
     private bool _useGpu;
+    private bool _gpuDisplayDirty;
     private Action<Index1D, int, int, int, IlgpuCameraParams, ArrayView<Float3>, ArrayView<byte>,
         ArrayView<GpuTriangle>, ArrayView<GpuMaterial>, ArrayView<GpuLight>, int, ArrayView<GpuBvhNode>, int,
         ArrayView<int>>? _traceKernel;
@@ -43,6 +44,7 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
     public IlgpuRayTracingBackend(bool deterministic = false)
     {
         _deterministic = deterministic;
+        _deferredOutput = new DeferredGpuRenderOutput(this);
         if (deterministic)
         {
             _cpuFallback = new CpuRayTracingBackend(deterministic: true);
@@ -72,7 +74,7 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
     public IRenderGpuSurface? GpuSurface => null;
 
     /// <inheritdoc />
-    public IRenderOutput Output => _cpuFallback?.Output ?? _output;
+    public IRenderOutput Output => _cpuFallback?.Output ?? _deferredOutput;
 
     /// <inheritdoc />
     public int SampleCount => _cpuFallback?.SampleCount ?? _sampleCount;
@@ -90,9 +92,8 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
             _width = width;
             _height = height;
             _display = new ImageBuffer(width, height);
-            _accumulationCpu = new Float3[width * height];
-            Array.Clear(_accumulationCpu);
-            _output.Buffer = _display;
+            _displayBytes = new byte[width * height * 4];
+            _gpuDisplayDirty = false;
 
             ReleaseGpuFrameBuffers();
             if (_useGpu)
@@ -100,6 +101,7 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
                 var count = width * height;
                 _accumulationGpu = _accelerator!.Allocate1D<Float3>(count);
                 _displayGpu = _accelerator.Allocate1D<byte>(count * 4);
+                _accumulationGpu.MemSetToZero();
             }
 
             _sampleCount = 0;
@@ -142,13 +144,60 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
 
         lock (_renderLock)
         {
-            if (_display is null || _accumulationCpu is null)
+            if (_display is null || _accumulationGpu is null || _displayGpu is null)
             {
                 throw new InvalidOperationException("Call ResizeAsync before RenderAsync.");
             }
 
-            RenderSampleGpu(camera, sampleIndex);
+            // Keep accumulation resident on the GPU. Do not sync/download until Output is read.
+            EnqueueTraceKernel(camera, sampleIndex);
             _sampleCount = sampleIndex + 1;
+            _gpuDisplayDirty = true;
+        }
+
+        return ValueTask.CompletedTask;
+    }
+
+    /// <summary>
+    /// Queues <paramref name="sampleCount"/> samples then flushes the display once.
+    /// Prefer this over repeated <see cref="RenderAsync"/> when publishing a frame after a batch.
+    /// </summary>
+    public ValueTask RenderBatchAsync(
+        CameraSnapshot camera,
+        int startSampleIndex,
+        int sampleCount,
+        CancellationToken cancellationToken = default)
+    {
+        if (_cpuFallback is not null)
+        {
+            for (var i = 0; i < sampleCount; i++)
+            {
+                _cpuFallback.RenderAsync(camera, startSampleIndex + i, cancellationToken).GetAwaiter().GetResult();
+            }
+
+            return ValueTask.CompletedTask;
+        }
+
+        if (sampleCount <= 0)
+        {
+            return ValueTask.CompletedTask;
+        }
+
+        lock (_renderLock)
+        {
+            if (_display is null || _accumulationGpu is null || _displayGpu is null)
+            {
+                throw new InvalidOperationException("Call ResizeAsync before RenderBatchAsync.");
+            }
+
+            for (var i = 0; i < sampleCount; i++)
+            {
+                EnqueueTraceKernel(camera, startSampleIndex + i);
+            }
+
+            _sampleCount = startSampleIndex + sampleCount;
+            _gpuDisplayDirty = true;
+            FlushDisplayToCpuUnlocked();
         }
 
         return ValueTask.CompletedTask;
@@ -180,6 +229,36 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
         _context?.Dispose();
     }
 
+    private void EnsureCpuDisplay()
+    {
+        if (_cpuFallback is not null)
+        {
+            return;
+        }
+
+        lock (_renderLock)
+        {
+            FlushDisplayToCpuUnlocked();
+        }
+    }
+
+    private bool TryGetCpuPixels(out ReadOnlySpan<Rgba32> pixels, out int width, out int height)
+    {
+        EnsureCpuDisplay();
+        if (_display is null)
+        {
+            pixels = default;
+            width = 0;
+            height = 0;
+            return false;
+        }
+
+        pixels = _display.AsSpan();
+        width = _display.Width;
+        height = _display.Height;
+        return true;
+    }
+
     private bool TryLoadTraceKernel()
     {
         try
@@ -203,69 +282,61 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
     private void ResetAccumulationCore()
     {
         _sampleCount = 0;
-        if (_accumulationCpu is not null)
-        {
-            Array.Clear(_accumulationCpu);
-        }
-
         _display?.Clear(Rgba32.Black);
+        _gpuDisplayDirty = false;
         if (_useGpu && _accumulationGpu is not null)
         {
             _accumulationGpu.MemSetToZero();
+            if (_displayGpu is not null)
+            {
+                _displayGpu.MemSetToZero();
+            }
+
             _accelerator!.Synchronize();
         }
     }
 
-    private void RenderSampleGpu(CameraSnapshot camera, int sampleIndex)
+    private void EnqueueTraceKernel(CameraSnapshot camera, int sampleIndex)
     {
-        var accelerator = _accelerator!;
-        var accumulationGpu = _accumulationGpu!;
-        var cameraParams = IlgpuCameraParams.FromSnapshot(camera, _width, _height);
-        accumulationGpu.CopyFromCPU(_accumulationCpu!);
-        var accumulationView = accumulationGpu.View;
-        var displayView = _displayGpu!.View;
-        var trianglesView = _trianglesGpu!.View;
-        var materialsView = _materialsGpu!.View;
-        var lightsView = _lightsGpu!.View;
-        var bvhView = _bvhGpu!.View;
-        var orderView = _triangleOrderGpu!.View;
-        var pixelCount = _width * _height;
-
         var kernel = _traceKernel
             ?? throw new InvalidOperationException("GPU kernel was not loaded; backend should have fallen back to CPU.");
-
+        var cameraParams = IlgpuCameraParams.FromSnapshot(camera, _width, _height);
+        var pixelCount = _width * _height;
         kernel(
             pixelCount,
             _width,
             _height,
             sampleIndex,
             cameraParams,
-            accumulationView,
-            displayView,
-            trianglesView,
-            materialsView,
-            lightsView,
+            _accumulationGpu!.View,
+            _displayGpu!.View,
+            _trianglesGpu!.View,
+            _materialsGpu!.View,
+            _lightsGpu!.View,
             _scene.Lights.Length,
-            bvhView,
+            _bvhGpu!.View,
             _bvhRootIndex,
-            orderView);
-
-        accelerator.Synchronize();
-        accumulationGpu.CopyToCPU(_accumulationCpu!);
-        CopyDisplayToCpu();
+            _triangleOrderGpu!.View);
     }
 
-    private void CopyDisplayToCpu()
+    private void FlushDisplayToCpuUnlocked()
     {
-        var count = _width * _height * 4;
-        var bytes = new byte[count];
-        _displayGpu!.CopyToCPU(bytes);
-        var pixels = _display!.Pixels;
+        if (!_gpuDisplayDirty || _display is null || _displayGpu is null || _displayBytes is null)
+        {
+            return;
+        }
+
+        _accelerator!.Synchronize();
+        _displayGpu.CopyToCPU(_displayBytes);
+        var pixels = _display.Pixels;
+        var bytes = _displayBytes;
         for (var i = 0; i < pixels.Length; i++)
         {
             var o = i * 4;
             pixels[i] = new Rgba32(bytes[o], bytes[o + 1], bytes[o + 2], bytes[o + 3]);
         }
+
+        _gpuDisplayDirty = false;
     }
 
     private void UploadSceneToGpu(CompiledScene scene)
@@ -304,5 +375,11 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
         _lightsGpu = null;
         _bvhGpu = null;
         _triangleOrderGpu = null;
+    }
+
+    private sealed class DeferredGpuRenderOutput(IlgpuRayTracingBackend owner) : IRenderOutput
+    {
+        public bool TryGetCpuPixels(out ReadOnlySpan<Rgba32> pixels, out int width, out int height) =>
+            owner.TryGetCpuPixels(out pixels, out width, out height);
     }
 }

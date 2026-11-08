@@ -1,3 +1,4 @@
+using Novolis.Rendering.Backends.Igpu;
 using Novolis.Rendering.Runtime;
 
 namespace Novolis.Rendering.PathTrace.Demos;
@@ -60,11 +61,7 @@ public sealed class PathTraceBackgroundWorker : IDisposable
             _task = Task.Run(() =>
             {
                 _backend.ResetAccumulation();
-                for (var s = 0; s < samplesPerFrame; s++)
-                {
-                    _backend.RenderAsync(camera, s).GetAwaiter().GetResult();
-                }
-
+                RenderSamples(camera, startSampleIndex: 0, samplesPerFrame);
                 PublishFrame();
             });
         }
@@ -92,11 +89,7 @@ public sealed class PathTraceBackgroundWorker : IDisposable
             var start = sample;
             _task = Task.Run(() =>
             {
-                for (var i = 0; i < batchSize; i++)
-                {
-                    _backend.RenderAsync(camera, start + i).GetAwaiter().GetResult();
-                }
-
+                RenderSamples(camera, start, batchSize);
                 PublishFrame();
             });
             sample = start + batchSize;
@@ -126,6 +119,20 @@ public sealed class PathTraceBackgroundWorker : IDisposable
 
         _disposed = true;
         WaitForIdle();
+    }
+
+    private void RenderSamples(CameraSnapshot camera, int startSampleIndex, int sampleCount)
+    {
+        if (_backend is IlgpuRayTracingBackend igpu)
+        {
+            igpu.RenderBatchAsync(camera, startSampleIndex, sampleCount).GetAwaiter().GetResult();
+            return;
+        }
+
+        for (var i = 0; i < sampleCount; i++)
+        {
+            _backend.RenderAsync(camera, startSampleIndex + i).GetAwaiter().GetResult();
+        }
     }
 
     private void PublishFrame()

@@ -26,9 +26,11 @@ await using var backend = new IlgpuRayTracingBackend();
 await backend.ResizeAsync(1280, 720);
 await backend.UploadSceneAsync(compiledScene);
 
-await backend.RenderAsync(camera, sampleIndex: 0);
+await backend.RenderBatchAsync(camera, startSampleIndex: 0, sampleCount: 16);
 backend.Output.TryGetCpuPixels(out var pixels, out var w, out var h);
 ```
+
+Accumulation stays on the GPU across samples. The framebuffer is synchronized to CPU only when `Output` is read (or at the end of `RenderBatchAsync`). Avoid per-sample PCIe round-trips.
 
 Default backend when `NOVOLIS_RAY_BACKEND` is unset. Implements `IRayTracingBackend` and `IDisposable`.
 
@@ -36,7 +38,7 @@ Default backend when `NOVOLIS_RAY_BACKEND` is unset. Implements `IRayTracingBack
 
 | Type | Role |
 |------|------|
-| `IlgpuRayTracingBackend` | GPU/CPU ILGPU path tracer |
+| `IlgpuRayTracingBackend` | GPU/CPU ILGPU path tracer; `RenderBatchAsync` for multi-sample flushes |
 | `IlgpuCameraParams` | Blittable camera params for kernels |
 | `GpuBvhNode` | GPU BVH node layout |
 | `Float3` | ILGPU-friendly 3-vector |
