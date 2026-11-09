@@ -6,6 +6,9 @@ namespace Novolis.Rendering.PathTrace.Demos;
 /// <summary>Runs path-tracing samples on a background thread for interactive demos.</summary>
 public sealed class PathTraceBackgroundWorker : IDisposable
 {
+    /// <summary>Minimum time between orbit preview publishes (reduces noisy pose flicker).</summary>
+    private const int OrbitPreviewMinIntervalMs = 150;
+
     private IRayTracingBackend _backend;
     private readonly PathTraceDisplayBuffer _display;
     private readonly object _gate = new();
@@ -13,6 +16,9 @@ public sealed class PathTraceBackgroundWorker : IDisposable
     private CancellationTokenSource _cts = new();
     private bool _resetPending;
     private bool _disposed;
+    private CameraSnapshot? _pendingOrbitCamera;
+    private int _pendingOrbitSamples;
+    private long _nextOrbitAllowedTick;
 
     /// <summary>Creates a worker bound to a backend and display buffer.</summary>
     public PathTraceBackgroundWorker(IRayTracingBackend backend, PathTraceDisplayBuffer display)
@@ -29,6 +35,7 @@ public sealed class PathTraceBackgroundWorker : IDisposable
         {
             _backend = backend;
             _resetPending = true;
+            _pendingOrbitCamera = null;
         }
     }
 
@@ -58,15 +65,16 @@ public sealed class PathTraceBackgroundWorker : IDisposable
         lock (_gate)
         {
             _resetPending = true;
+            _pendingOrbitCamera = null;
             CancelLocked();
         }
     }
 
     /// <summary>
-    /// Cheap moving-camera preview: reset + a few samples. Prefer this while auto-orbiting —
-    /// do not fire progressive 24-spp jobs every pose (that saturates the GPU).
+    /// Cheap moving-camera preview: reset + a few samples. Coalesces to the latest pose while busy
+    /// and rate-limits publishes so the window does not flicker through noisy 2-spp frames.
     /// </summary>
-    public void TryEnqueueOrbitPreview(CameraSnapshot camera, int samplesPerPose = 2)
+    public void TryEnqueueOrbitPreview(CameraSnapshot camera, int samplesPerPose = 4)
     {
         if (_disposed || samplesPerPose <= 0)
         {
@@ -75,15 +83,19 @@ public sealed class PathTraceBackgroundWorker : IDisposable
 
         lock (_gate)
         {
+            _pendingOrbitCamera = camera;
+            _pendingOrbitSamples = samplesPerPose;
             if (_task is { IsCompleted: false })
             {
                 return;
             }
 
-            _resetPending = true;
-            var ct = _cts.Token;
-            var backend = _backend;
-            _task = Task.Run(() => RunJob(backend, camera, startSampleIndex: 0, samplesPerPose, forceReset: true, ct), ct);
+            if (Environment.TickCount64 < _nextOrbitAllowedTick)
+            {
+                return;
+            }
+
+            StartOrbitFromPendingLocked();
         }
     }
 
@@ -102,6 +114,7 @@ public sealed class PathTraceBackgroundWorker : IDisposable
                 return false;
             }
 
+            _pendingOrbitCamera = null;
             var start = _resetPending ? 0 : sample;
             var forceReset = _resetPending;
             if (_resetPending)
@@ -148,6 +161,41 @@ public sealed class PathTraceBackgroundWorker : IDisposable
         RequestReset();
         WaitForIdle();
         _cts.Dispose();
+    }
+
+    private void StartOrbitFromPendingLocked()
+    {
+        if (_pendingOrbitCamera is not { } camera)
+        {
+            return;
+        }
+
+        var samples = _pendingOrbitSamples;
+        _pendingOrbitCamera = null;
+        _resetPending = true;
+        var ct = _cts.Token;
+        var backend = _backend;
+        _task = Task.Run(() => RunOrbitJob(backend, camera, samples, ct), ct);
+    }
+
+    private void RunOrbitJob(IRayTracingBackend backend, CameraSnapshot camera, int sampleCount, CancellationToken ct)
+    {
+        try
+        {
+            RunJob(backend, camera, startSampleIndex: 0, sampleCount, forceReset: true, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            // Soft reset / dispose.
+        }
+        finally
+        {
+            lock (_gate)
+            {
+                // UI keeps calling TryEnqueueOrbitPreview; rate-limit the next start.
+                _nextOrbitAllowedTick = Environment.TickCount64 + OrbitPreviewMinIntervalMs;
+            }
+        }
     }
 
     private void RunJob(

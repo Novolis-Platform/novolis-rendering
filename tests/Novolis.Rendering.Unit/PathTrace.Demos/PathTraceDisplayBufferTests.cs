@@ -23,5 +23,10 @@ public sealed class PathTraceDisplayBufferTests
         await Assert.That(h).IsEqualTo(2);
         await Assert.That(copy[0]).IsEqualTo(Rgba32.Red);
         await Assert.That(display.TryCopyFrameIfNew(ref gen, out _, out _, out _)).IsFalse();
+
+        // Snapshot must stay stable while a later Publish mutates the live buffer.
+        pixels[0] = new Rgba32(0, 0, 255);
+        display.Publish(pixels, 4, 2, sampleCount: 4);
+        await Assert.That(copy[0]).IsEqualTo(Rgba32.Red);
     }
 }

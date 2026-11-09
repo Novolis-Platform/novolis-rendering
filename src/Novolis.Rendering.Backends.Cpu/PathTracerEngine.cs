@@ -50,7 +50,8 @@ internal static class PathTracerEngine
                     var jitterX = deterministic ? 0.5f : (float)rng.NextDouble();
                     var jitterY = deterministic ? 0.5f : (float)rng.NextDouble();
                     var u = (2f * (x + jitterX) / width - 1f) * tanHalfFov * aspect;
-                    var v = (2f * (y + jitterY) / height - 1f) * tanHalfFov;
+                    // Row 0 is the top of the framebuffer (matches Silk/OpenGL blit UVs).
+                    var v = (1f - 2f * (y + jitterY) / height) * tanHalfFov;
                     var dir = Vector3.Normalize(camera.Forward + u * camera.Right + v * camera.Up);
                     var ray = new Ray(camera.Position, dir);
                     var radiance = Trace(in ray, scene, 0, ref rng);

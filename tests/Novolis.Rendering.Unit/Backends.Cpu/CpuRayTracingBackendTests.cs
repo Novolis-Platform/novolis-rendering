@@ -25,7 +25,7 @@ public sealed class CpuRayTracingBackendTests
         await Assert.That(backend.SampleCount).IsEqualTo(2);
         var hash = FramebufferGoldenAssert.Sha256Hex(backend.Output);
         // Pinned UnitCubeRoom @ 32×24, samples 0+1, LookAt(1.2,0.8,2)→origin, FOV 55°.
-        await Assert.That(hash).IsEqualTo("c1a70204381dc978ad82c8a866bf68ec4bce477cf21663265300ae13d893fc6c");
+        await Assert.That(hash).IsEqualTo("dbaa0f1b6ef1df3d7fead877150e1428c0d5d27c6589b66ceb07b94979eaa315");
     }
 
     [Test]

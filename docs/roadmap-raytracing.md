@@ -23,7 +23,7 @@ Governance: [library-boundaries.md](https://github.com/Novolis-Platform/novolis-
 | Phase 7 Quality | `NOV2005` bans Scene in Raylib; `FramebufferGoldenAssert`; pinned UnitCubeRoom SHA-256; Math BVH |
 
 **Pinned golden (CPU deterministic):** UnitCubeRoom, 32×24, samples 0+1, LookAt `(1.2,0.8,2)→0`, FOV 55° →  
-`c1a70204381dc978ad82c8a866bf68ec4bce477cf21663265300ae13d893fc6c`
+`dbaa0f1b6ef1df3d7fead877150e1428c0d5d27c6589b66ceb07b94979eaa315`
 
 ---
 

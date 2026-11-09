@@ -8,6 +8,7 @@ public sealed class PathTraceDisplayBuffer
 {
     private readonly object _gate = new();
     private Rgba32[]? _pixels;
+    private Rgba32[]? _presentCopy;
     private int _width;
     private int _height;
 
@@ -90,7 +91,7 @@ public sealed class PathTraceDisplayBuffer
                 return false;
             }
 
-            pixels = _pixels;
+            pixels = CopyForPresentLocked();
             width = _width;
             height = _height;
             return true;
@@ -100,6 +101,7 @@ public sealed class PathTraceDisplayBuffer
     /// <summary>
     /// Like <see cref="TryCopyFrame"/> but only succeeds when <see cref="FrameGeneration"/> advanced
     /// since <paramref name="lastPresentedGeneration"/> — skip redundant GPU texture uploads.
+    /// Returns a stable snapshot so the UI thread can blit while the worker publishes the next frame.
     /// </summary>
     public bool TryCopyFrameIfNew(ref int lastPresentedGeneration, out Rgba32[] pixels, out int width, out int height)
     {
@@ -113,11 +115,21 @@ public sealed class PathTraceDisplayBuffer
                 return false;
             }
 
-            pixels = _pixels;
+            pixels = CopyForPresentLocked();
             width = _width;
             height = _height;
             lastPresentedGeneration = FrameGeneration;
             return true;
         }
+    }
+
+    private Rgba32[] CopyForPresentLocked()
+    {
+        var count = _width * _height;
+        if (_presentCopy is null || _presentCopy.Length != count)
+            _presentCopy = new Rgba32[count];
+
+        Array.Copy(_pixels!, _presentCopy, count);
+        return _presentCopy;
     }
 }

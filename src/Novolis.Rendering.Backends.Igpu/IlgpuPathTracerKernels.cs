@@ -38,7 +38,8 @@ internal static class IlgpuPathTracerKernels
         var jitterX = NextFloat(ref rng);
         var jitterY = NextFloat(ref rng);
         var u = (2f * (x + jitterX) / width - 1f) * camera.TanHalfFov * camera.Aspect;
-        var v = (2f * (y + jitterY) / height - 1f) * camera.TanHalfFov;
+        // Row 0 is the top of the framebuffer (matches CPU tracer + Silk blit UVs).
+        var v = (1f - 2f * (y + jitterY) / height) * camera.TanHalfFov;
         var origin = camera.Position;
         var direction = Float3.Normalize(Float3.Add(Float3.Add(camera.Forward, Float3.Scale(camera.Right, u)), Float3.Scale(camera.Up, v)));
         var throughput = Float3.One;

@@ -43,6 +43,6 @@ public sealed class VulkanRayTracingBackendTests
         await Assert.That(FramebufferGoldenAssert.Sha256Hex(vulkan.Output))
             .IsEqualTo(FramebufferGoldenAssert.Sha256Hex(cpu.Output));
         await Assert.That(FramebufferGoldenAssert.Sha256Hex(vulkan.Output))
-            .IsEqualTo("c1a70204381dc978ad82c8a866bf68ec4bce477cf21663265300ae13d893fc6c");
+            .IsEqualTo("dbaa0f1b6ef1df3d7fead877150e1428c0d5d27c6589b66ceb07b94979eaa315");
     }
 }
