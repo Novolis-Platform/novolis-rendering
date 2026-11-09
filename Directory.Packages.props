@@ -4,6 +4,7 @@
     <PackageVersion Include="ILGPU.Algorithms" Version="1.5.3" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.13" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.13" />
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.402" />
     <PackageVersion Include="Novolis.Math.Arrays" Version="2026.1.*" />
     <PackageVersion Include="Novolis.Math.Geometry" Version="2026.1.*" />

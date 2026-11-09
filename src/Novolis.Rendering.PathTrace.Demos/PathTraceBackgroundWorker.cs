@@ -74,11 +74,12 @@ public sealed class PathTraceBackgroundWorker : IDisposable
     /// Cheap moving-camera preview (orbit / drag / zoom): coalesces to the latest pose while busy
     /// and rate-limits starts so drag does not cancel/restart every mouse delta.
     /// </summary>
-    public void TryEnqueueMovingPreview(CameraSnapshot camera, int samplesPerPose = 4)
+    /// <returns><see langword="true"/> when a new background job started.</returns>
+    public bool TryEnqueueMovingPreview(CameraSnapshot camera, int samplesPerPose = 4)
     {
         if (_disposed || samplesPerPose <= 0)
         {
-            return;
+            return false;
         }
 
         lock (_gate)
@@ -87,20 +88,21 @@ public sealed class PathTraceBackgroundWorker : IDisposable
             _pendingMovingSamples = samplesPerPose;
             if (_task is { IsCompleted: false })
             {
-                return;
+                return false;
             }
 
             if (Environment.TickCount64 < _nextMovingAllowedTick)
             {
-                return;
+                return false;
             }
 
             StartMovingFromPendingLocked();
+            return true;
         }
     }
 
     /// <summary>Alias for <see cref="TryEnqueueMovingPreview"/> (orbit hosts).</summary>
-    public void TryEnqueueOrbitPreview(CameraSnapshot camera, int samplesPerPose = 4) =>
+    public bool TryEnqueueOrbitPreview(CameraSnapshot camera, int samplesPerPose = 4) =>
         TryEnqueueMovingPreview(camera, samplesPerPose);
 
     /// <summary>Enqueues a progressive accumulation batch when idle.</summary>
