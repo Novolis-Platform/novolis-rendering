@@ -193,9 +193,11 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
 
             for (var i = 0; i < sampleCount; i++)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 EnqueueTraceKernel(camera, startSampleIndex + i);
             }
 
+            cancellationToken.ThrowIfCancellationRequested();
             _sampleCount = startSampleIndex + sampleCount;
             _gpuDisplayDirty = true;
             FlushDisplayToCpuUnlocked();

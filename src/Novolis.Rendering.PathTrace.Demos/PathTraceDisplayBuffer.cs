@@ -30,6 +30,7 @@ public sealed class PathTraceDisplayBuffer
             _height = height;
             DisplayedSampleCount = 0;
             Array.Clear(_pixels);
+            FrameGeneration++;
         }
     }
 
@@ -92,6 +93,30 @@ public sealed class PathTraceDisplayBuffer
             pixels = _pixels;
             width = _width;
             height = _height;
+            return true;
+        }
+    }
+
+    /// <summary>
+    /// Like <see cref="TryCopyFrame"/> but only succeeds when <see cref="FrameGeneration"/> advanced
+    /// since <paramref name="lastPresentedGeneration"/> — skip redundant GPU texture uploads.
+    /// </summary>
+    public bool TryCopyFrameIfNew(ref int lastPresentedGeneration, out Rgba32[] pixels, out int width, out int height)
+    {
+        lock (_gate)
+        {
+            if (_pixels is null || _width <= 0 || _height <= 0 || FrameGeneration == lastPresentedGeneration)
+            {
+                pixels = [];
+                width = 0;
+                height = 0;
+                return false;
+            }
+
+            pixels = _pixels;
+            width = _width;
+            height = _height;
+            lastPresentedGeneration = FrameGeneration;
             return true;
         }
     }

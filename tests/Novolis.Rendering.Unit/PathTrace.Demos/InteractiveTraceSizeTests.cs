@@ -9,8 +9,8 @@ public sealed class InteractiveTraceSizeTests
     public async Task Clamp_Caps_Large_Windows()
     {
         var (w, h) = InteractiveTraceSize.Clamp(1920, 1080);
-        await Assert.That(w).IsEqualTo(960);
-        await Assert.That(h).IsEqualTo(540);
+        await Assert.That(w).IsEqualTo(InteractiveTraceSize.DefaultMaxWidth);
+        await Assert.That(h).IsEqualTo(InteractiveTraceSize.DefaultMaxHeight);
         await Assert.That(w % 2).IsEqualTo(0);
         await Assert.That(h % 2).IsEqualTo(0);
     }

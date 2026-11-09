@@ -3,11 +3,11 @@ namespace Novolis.Rendering.PathTrace.Demos;
 /// <summary>Caps path-trace resolution for interactive hosts while the window may be larger.</summary>
 public static class InteractiveTraceSize
 {
-    /// <summary>Default max interactive trace size (16:9).</summary>
-    public const int DefaultMaxWidth = 960;
+    /// <summary>Default max interactive trace size (16:9). Keep modest — path tracing is per-pixel.</summary>
+    public const int DefaultMaxWidth = 800;
 
     /// <summary>Default max interactive trace height.</summary>
-    public const int DefaultMaxHeight = 540;
+    public const int DefaultMaxHeight = 450;
 
     /// <summary>
     /// Returns even width/height ≤ window and ≤ max, preserving aspect.
