@@ -24,9 +24,10 @@ public static class MaterialPresets
     /// <param name="tint">Transmission tint.</param>
     /// <param name="roughness">Surface roughness.</param>
     /// <param name="ior">Index of refraction.</param>
+    /// <param name="absorption">Beer–Lambert absorption strength.</param>
     /// <returns>A configured <see cref="GlassMaterial"/>.</returns>
-    public static GlassMaterial Glass(Vector3 tint, float roughness = 0f, float ior = 1.5f) =>
-        new() { Tint = tint, Roughness = roughness, Ior = ior };
+    public static GlassMaterial Glass(Vector3 tint, float roughness = 0f, float ior = 1.5f, float absorption = 0f) =>
+        new() { Tint = tint, Roughness = roughness, Ior = ior, Absorption = absorption };
 
     /// <summary>Creates a skin material.</summary>
     /// <param name="baseColor">Skin tone.</param>

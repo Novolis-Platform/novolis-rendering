@@ -34,6 +34,6 @@ public sealed class BackendParityTests
 
         var hash = FramebufferGoldenAssert.Sha256Hex(cpu.Output);
         await Assert.That(FramebufferGoldenAssert.Sha256Hex(igpu.Output)).IsEqualTo(hash);
-        await Assert.That(hash).IsEqualTo("dbaa0f1b6ef1df3d7fead877150e1428c0d5d27c6589b66ceb07b94979eaa315");
+        await Assert.That(hash).IsEqualTo("e1f7c0113c5708b9d6e7aa177f8dd08e78b4897b429b2d2b2f3d3a144efcaa2f");
     }
 }

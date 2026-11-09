@@ -5,16 +5,18 @@ using Novolis.Rendering.Runtime;
 
 namespace Novolis.Rendering.Backends.Igpu;
 
-/// <summary>GPU path tracing kernels (iterative; ILGPU does not support recursive device methods).</summary>
+/// <summary>
+/// GPU path tracing kernels (iterative; ILGPU does not support recursive device methods).
+/// Bounce math follows Sebastian Lague / demofox-style throughput + Russian roulette + Fresnel glass.
+/// </summary>
 internal static class IlgpuPathTracerKernels
 {
-    // Interactive GPU path: one fewer bounce than the CPU reference (depth 4) for glass/metal cost.
-    private const int MaxDepth = 3;
+    private const int MaxDepth = 5;
     private const float Epsilon = 1e-4f;
     private const int MaxLights = 8;
     private const int BvhStackCapacity = 64;
-    private const float DisplayExposure = 2f;
-    private const float AmbientStrength = 0.08f;
+    private const float DisplayExposure = 1.6f;
+    private const float Pi = 3.14159265f;
 
     public static void TracePixelKernel(
         Index1D index,
@@ -49,58 +51,184 @@ internal static class IlgpuPathTracerKernels
         {
             if (!IntersectScene(origin, direction, triangles, bvhNodes, bvhRootIndex, triangleOrder, float.MaxValue, out var hit))
             {
-                radiance = Float3.Add(radiance, Float3.Mul(throughput, SampleSky(direction)));
+                radiance = Float3.Add(radiance, Float3.Mul(throughput, SampleSky(direction, lights, lightCount)));
                 break;
             }
 
             var mat = materials[hit.MaterialIndex];
             if (mat.Model == MaterialModel.Emissive)
             {
-                radiance = Float3.Add(radiance, Float3.Mul(throughput, Float3.Scale(Float3.Create(mat.A.X, mat.A.Y, mat.A.Z), mat.A.W)));
+                radiance = Float3.Add(
+                    radiance,
+                    Float3.Mul(throughput, Float3.Scale(Float3.Create(mat.A.X, mat.A.Y, mat.A.Z), mat.A.W)));
                 break;
             }
 
-            radiance = Float3.Add(
-                radiance,
-                Float3.Mul(throughput, DirectLighting(direction, hit, mat, lights, lightCount, triangles, bvhNodes, bvhRootIndex, triangleOrder)));
-
-            if (depth + 1 >= MaxDepth)
+            if (mat.Model == MaterialModel.Glass)
             {
-                break;
-            }
-
-            var baseColor = Float3.Create(mat.A.X, mat.A.Y, mat.A.Z);
-            var roughness = TracerMath.Max(mat.A.W, 0.04f);
-            var metallic = mat.B.X;
-            var n = hit.Normal;
-
-            if (metallic > 0.75f)
-            {
-                var mirrorWeight = metallic * (1f - TracerMath.Min(roughness / 0.12f, 1f));
-                if (mirrorWeight > 0.01f)
+                if (!ScatterGlass(ref origin, ref direction, ref throughput, hit, mat, ref rng))
                 {
-                    origin = Float3.Add(hit.Point, Float3.Scale(n, Epsilon));
-                    direction = Float3.Normalize(Float3.Reflect(direction, n));
-                    throughput = Float3.Mul(throughput, Float3.Scale(baseColor, mirrorWeight));
-                    continue;
+                    break;
+                }
+            }
+            else
+            {
+                // Explicit directional/point lights (studio scenes) + Lague-style bounce.
+                radiance = Float3.Add(
+                    radiance,
+                    Float3.Mul(
+                        throughput,
+                        DirectLighting(direction, hit, mat, lights, lightCount, triangles, bvhNodes, bvhRootIndex, triangleOrder)));
+
+                if (mat.B.Y > 1e-5f)
+                {
+                    radiance = Float3.Add(
+                        radiance,
+                        Float3.Mul(throughput, Float3.Scale(Float3.Create(mat.C.X, mat.C.Y, mat.C.Z), mat.B.Y)));
+                }
+
+                if (!ScatterStandard(ref origin, ref direction, ref throughput, hit, mat, ref rng))
+                {
+                    break;
                 }
             }
 
-            if (roughness > 0.01f && NextFloat(ref rng) > metallic)
+            // Russian roulette (after a couple of bounces) — Lague / demofox.
+            if (depth >= 2)
             {
-                origin = Float3.Add(hit.Point, Float3.Scale(n, Epsilon));
-                direction = CosineHemisphere(n, ref rng);
-                throughput = Float3.Mul(throughput, Float3.Scale(baseColor, 0.5f));
-                continue;
-            }
+                var p = TracerMath.Max(throughput.X, TracerMath.Max(throughput.Y, throughput.Z));
+                p = TracerMath.Min(p, 0.95f);
+                if (NextFloat(ref rng) >= p)
+                {
+                    break;
+                }
 
-            break;
+                throughput = Float3.Scale(throughput, 1f / TracerMath.Max(p, 1e-4f));
+            }
         }
 
         var invCount = 1f / (sampleIndex + 1);
         var blended = Float3.Add(accumulation[index], radiance);
         accumulation[index] = blended;
         WriteRgba(displayRgba, index, Float3.Scale(blended, invCount));
+    }
+
+    private static bool ScatterStandard(
+        ref Float3 origin,
+        ref Float3 direction,
+        ref Float3 throughput,
+        Hit hit,
+        GpuMaterial mat,
+        ref uint rng)
+    {
+        var baseColor = Float3.Create(mat.A.X, mat.A.Y, mat.A.Z);
+        var roughness = TracerMath.Max(mat.A.W, 0.04f);
+        var metallic = TracerMath.Clamp(mat.B.X, 0f, 1f);
+        var smoothness = 1f - roughness;
+        var specularProbability = TracerMath.Clamp(metallic * 0.85f + 0.05f, 0.05f, 1f);
+        var n = hit.Normal;
+
+        var isSpecular = NextFloat(ref rng) < specularProbability;
+        var diffuseDir = Float3.Normalize(Float3.Add(n, RandomDirection(ref rng)));
+        if (Float3.Dot(diffuseDir, n) <= 0f)
+        {
+            diffuseDir = Float3.Normalize(Float3.Add(n, Float3.Scale(RandomDirection(ref rng), 0.5f)));
+        }
+
+        var specularDir = Float3.Normalize(Float3.Reflect(direction, n));
+        var bounceDir = isSpecular
+            ? Float3.Normalize(Float3.Lerp(diffuseDir, specularDir, smoothness))
+            : diffuseDir;
+
+        origin = Float3.Add(hit.Point, Float3.Scale(n, Epsilon));
+        direction = bounceDir;
+
+        // Specular lobes keep specular tint (metal base); diffuse uses albedo.
+        var surface = isSpecular
+            ? Float3.Lerp(Float3.Create(0.04f, 0.04f, 0.04f), baseColor, metallic)
+            : Float3.Scale(baseColor, 1f - metallic * 0.85f);
+        throughput = Float3.Mul(throughput, surface);
+        return Float3.MaxComponent(throughput) > 1e-5f;
+    }
+
+    private static bool ScatterGlass(
+        ref Float3 origin,
+        ref Float3 direction,
+        ref Float3 throughput,
+        Hit hit,
+        GpuMaterial mat,
+        ref uint rng)
+    {
+        var tint = Float3.Create(mat.A.X, mat.A.Y, mat.A.Z);
+        var roughness = TracerMath.Clamp(mat.A.W, 0f, 1f);
+        var ior = TracerMath.Max(mat.B.X, 1.01f);
+        var absorption = TracerMath.Max(mat.B.Y, 0f);
+        var n = hit.Normal;
+        var entering = Float3.Dot(direction, n) < 0f;
+        if (!entering)
+        {
+            n = Float3.Scale(n, -1f);
+            // Beer–Lambert while leaving the volume (hit distance ≈ path through medium).
+            if (absorption > 1e-5f)
+            {
+                var atten = TracerMath.Exp(-hit.Distance * absorption);
+                throughput = Float3.Mul(throughput, Float3.Scale(tint, atten));
+            }
+        }
+
+        var iorA = entering ? 1f : ior;
+        var iorB = entering ? ior : 1f;
+        var reflectWeight = FresnelReflectance(direction, n, iorA, iorB);
+        var reflectDir = Float3.Normalize(Float3.Reflect(direction, n));
+        var refractDir = Refract(direction, n, iorA, iorB);
+        var hasRefract = Float3.LengthSquared(refractDir) > 1e-8f;
+
+        var diffuseDir = Float3.Normalize(Float3.Add(n, RandomDirection(ref rng)));
+        reflectDir = Float3.Normalize(Float3.Lerp(diffuseDir, reflectDir, 1f - roughness * 0.85f));
+        if (hasRefract)
+        {
+            refractDir = Float3.Normalize(Float3.Lerp(Float3.Scale(diffuseDir, -1f), refractDir, 1f - roughness));
+        }
+
+        var followReflection = !hasRefract || NextFloat(ref rng) <= reflectWeight;
+        direction = followReflection ? reflectDir : refractDir;
+        origin = Float3.Add(hit.Point, Float3.Scale(n, Epsilon * (followReflection ? 1f : -1f)));
+        if (!followReflection)
+        {
+            throughput = Float3.Mul(throughput, tint);
+        }
+
+        return Float3.MaxComponent(throughput) > 1e-5f;
+    }
+
+    private static float FresnelReflectance(Float3 inDir, Float3 normal, float iorA, float iorB)
+    {
+        var ratio = iorA / iorB;
+        var cosIn = TracerMath.Min(1f, TracerMath.Max(0f, -Float3.Dot(inDir, normal)));
+        var sin2 = ratio * ratio * (1f - cosIn * cosIn);
+        if (sin2 >= 1f)
+        {
+            return 1f;
+        }
+
+        var cosT = TracerMath.Sqrt(TracerMath.Max(0f, 1f - sin2));
+        var rPar = (iorB * cosIn - iorA * cosT) / (iorB * cosIn + iorA * cosT + 1e-8f);
+        var rPer = (iorA * cosIn - iorB * cosT) / (iorA * cosIn + iorB * cosT + 1e-8f);
+        return TracerMath.Clamp(0.5f * (rPar * rPar + rPer * rPer), 0f, 1f);
+    }
+
+    private static Float3 Refract(Float3 inDir, Float3 normal, float iorA, float iorB)
+    {
+        var ratio = iorA / iorB;
+        var cosIn = TracerMath.Min(1f, TracerMath.Max(0f, -Float3.Dot(inDir, normal)));
+        var sin2 = ratio * ratio * (1f - cosIn * cosIn);
+        if (sin2 > 1f)
+        {
+            return Float3.Zero;
+        }
+
+        var cosT = TracerMath.Sqrt(TracerMath.Max(0f, 1f - sin2));
+        return Float3.Normalize(Float3.Add(Float3.Scale(inDir, ratio), Float3.Scale(normal, ratio * cosIn - cosT)));
     }
 
     private static Float3 DirectLighting(
@@ -117,11 +245,9 @@ internal static class IlgpuPathTracerKernels
         var baseColor = Float3.Create(mat.A.X, mat.A.Y, mat.A.Z);
         var roughness = TracerMath.Max(mat.A.W, 0.04f);
         var metallic = mat.B.X;
-        var emissionStrength = mat.B.Y;
-        var emissionColor = Float3.Create(mat.C.X, mat.C.Y, mat.C.Z);
         var n = hit.Normal;
         var v = Float3.Normalize(Float3.Scale(incomingDirection, -1f));
-        var radiance = Float3.Scale(emissionColor, emissionStrength);
+        var radiance = Float3.Zero;
         var lightsToProcess = TracerMath.Min(lightCount, MaxLights);
 
         for (var i = 0; i < lightsToProcess; i++)
@@ -149,10 +275,12 @@ internal static class IlgpuPathTracerKernels
             var f0 = Float3.Lerp(Float3.Create(0.04f, 0.04f, 0.04f), baseColor, metallic);
             var spec = GgxSpec(n, v, lightDir, roughness, f0);
             var lightColor = Float3.Create(light.Color.X, light.Color.Y, light.Color.Z);
-            radiance = Float3.Add(radiance, Float3.Mul(Float3.Add(Float3.Scale(diffuse, ndotl), spec), Float3.Scale(lightColor, light.Intensity)));
+            radiance = Float3.Add(
+                radiance,
+                Float3.Mul(Float3.Add(Float3.Scale(diffuse, ndotl), spec), Float3.Scale(lightColor, light.Intensity)));
         }
 
-        return Float3.Add(radiance, Float3.Scale(baseColor, AmbientStrength));
+        return radiance;
     }
 
     private static bool IntersectScene(
@@ -196,16 +324,43 @@ internal static class IlgpuPathTracerKernels
 
                         found = true;
                         bestT = t;
-                        hit = new Hit(tri.MaterialIndex, Float3.Add(origin, Float3.Scale(direction, t)), n);
+                        hit = new Hit(tri.MaterialIndex, Float3.Add(origin, Float3.Scale(direction, t)), n, t);
                     }
 
                     continue;
                 }
 
+                // Near child last so it is visited first (Lague BVH episode).
                 if (stackSize + 2 <= BvhStackCapacity)
                 {
-                    stack[stackSize++] = node.LeftChild;
-                    stack[stackSize++] = node.RightChild;
+                    var left = bvhNodes[node.LeftChild];
+                    var right = bvhNodes[node.RightChild];
+                    var dstL = RaySlabEnter(left.BoundsMin, left.BoundsMax, origin, direction);
+                    var dstR = RaySlabEnter(right.BoundsMin, right.BoundsMax, origin, direction);
+                    if (dstL <= dstR)
+                    {
+                        if (dstR < bestT)
+                        {
+                            stack[stackSize++] = node.RightChild;
+                        }
+
+                        if (dstL < bestT)
+                        {
+                            stack[stackSize++] = node.LeftChild;
+                        }
+                    }
+                    else
+                    {
+                        if (dstL < bestT)
+                        {
+                            stack[stackSize++] = node.LeftChild;
+                        }
+
+                        if (dstR < bestT)
+                        {
+                            stack[stackSize++] = node.RightChild;
+                        }
+                    }
                 }
             }
 
@@ -235,7 +390,7 @@ internal static class IlgpuPathTracerKernels
 
             found = true;
             bestT = t;
-            hit = new Hit(tri.MaterialIndex, Float3.Add(origin, Float3.Scale(direction, t)), n);
+            hit = new Hit(tri.MaterialIndex, Float3.Add(origin, Float3.Scale(direction, t)), n, t);
         }
 
         return found;
@@ -312,6 +467,47 @@ internal static class IlgpuPathTracerKernels
         return true;
     }
 
+    private static float RaySlabEnter(Float3 boxMin, Float3 boxMax, Float3 origin, Float3 direction)
+    {
+        var tEnter = 0f;
+        var tExit = float.MaxValue;
+        for (var axis = 0; axis < 3; axis++)
+        {
+            var o = axis == 0 ? origin.X : axis == 1 ? origin.Y : origin.Z;
+            var d = axis == 0 ? direction.X : axis == 1 ? direction.Y : direction.Z;
+            var min = axis == 0 ? boxMin.X : axis == 1 ? boxMin.Y : boxMin.Z;
+            var max = axis == 0 ? boxMax.X : axis == 1 ? boxMax.Y : boxMax.Z;
+            if (TracerMath.Abs(d) < 1e-15f)
+            {
+                if (o < min || o > max)
+                {
+                    return float.MaxValue;
+                }
+
+                continue;
+            }
+
+            var invD = 1f / d;
+            var t0 = (min - o) * invD;
+            var t1 = (max - o) * invD;
+            if (t0 > t1)
+            {
+                var swap = t0;
+                t0 = t1;
+                t1 = swap;
+            }
+
+            tEnter = TracerMath.Max(tEnter, t0);
+            tExit = TracerMath.Min(tExit, t1);
+            if (tEnter > tExit)
+            {
+                return float.MaxValue;
+            }
+        }
+
+        return tEnter > 0f ? tEnter : 0f;
+    }
+
     private static bool RaySlabIntersect(
         Float3 boxMin,
         Float3 boxMax,
@@ -373,31 +569,57 @@ internal static class IlgpuPathTracerKernels
         var a = roughness * roughness;
         var a2 = a * a;
         var denom = ndoth * ndoth * (a2 - 1f) + 1f;
-        var d = a2 / (TracerMath.PI * denom * denom + 1e-7f);
+        var d = a2 / (Pi * denom * denom + 1e-7f);
         return Float3.Scale(f0, d * ndotl);
     }
 
-    private static Float3 CosineHemisphere(Float3 normal, ref uint rng)
+    private static Float3 RandomDirection(ref uint rng)
     {
-        var u1 = NextFloat(ref rng);
-        var u2 = NextFloat(ref rng);
-        var r = TracerMath.Sqrt(u1);
-        var phi = 2f * TracerMath.PI * u2;
-        var x = r * TracerMath.Cos(phi);
-        var y = r * TracerMath.Sin(phi);
-        var z = TracerMath.Sqrt(TracerMath.Max(0f, 1f - u1));
-        var up = TracerMath.Abs(normal.Y) < 0.999f ? Float3.UnitY : Float3.UnitX;
-        var tangent = Float3.Normalize(Float3.Cross(up, normal));
-        var bitangent = Float3.Cross(normal, tangent);
-        return Float3.Normalize(Float3.Add(Float3.Add(Float3.Scale(tangent, x), Float3.Scale(bitangent, y)), Float3.Scale(normal, z)));
+        // Box–Muller → approximate isotropic direction (Lague).
+        var theta = 2f * Pi * NextFloat(ref rng);
+        var rho = TracerMath.Sqrt(-2f * TracerMath.Log(TracerMath.Max(1e-6f, NextFloat(ref rng))));
+        var x = rho * TracerMath.Cos(theta);
+        var y = rho * TracerMath.Sin(theta);
+        theta = 2f * Pi * NextFloat(ref rng);
+        rho = TracerMath.Sqrt(-2f * TracerMath.Log(TracerMath.Max(1e-6f, NextFloat(ref rng))));
+        var z = rho * TracerMath.Cos(theta);
+        return Float3.Normalize(Float3.Create(x, y, z));
     }
 
-    private static Float3 SampleSky(Float3 direction)
+    private static Float3 SampleSky(Float3 direction, ArrayView<GpuLight> lights, int lightCount)
     {
-        var t = TracerMath.Clamp(direction.Y * 0.5f + 0.5f, 0f, 1f);
-        var low = Float3.Create(40f / 255f, 44f / 255f, 52f / 255f);
-        var high = Float3.Create(120f / 255f, 168f / 255f, 220f / 255f);
-        return Float3.Lerp(low, high, t);
+        var ground = Float3.Create(0.35f, 0.3f, 0.35f);
+        var horizon = Float3.Create(1f, 1f, 1f);
+        var zenith = Float3.Create(0.08f, 0.37f, 0.73f);
+        var skyT = TracerMath.Pow(TracerMath.Clamp((direction.Y + 0.01f) / 0.4f, 0f, 1f), 0.35f);
+        var groundToSky = TracerMath.Clamp(direction.Y * 50f + 0.5f, 0f, 1f);
+        var sky = Float3.Lerp(horizon, zenith, skyT);
+        var env = Float3.Lerp(ground, sky, groundToSky);
+
+        var sun = Float3.Zero;
+        var count = TracerMath.Min(lightCount, MaxLights);
+        for (var i = 0; i < count; i++)
+        {
+            var light = lights[i];
+            if (light.Kind != GpuLightKind.Directional)
+            {
+                continue;
+            }
+
+            var dirToSun = Float3.Normalize(Float3.Scale(
+                Float3.Create(light.DirectionOrPosition.X, light.DirectionOrPosition.Y, light.DirectionOrPosition.Z),
+                -1f));
+            var focus = 500f;
+            var sunDisc = TracerMath.Pow(TracerMath.Max(0f, Float3.Dot(direction, dirToSun)), focus) * 10f * light.Intensity;
+            sun = Float3.Add(sun, Float3.Scale(Float3.Create(light.Color.X, light.Color.Y, light.Color.Z), sunDisc));
+        }
+
+        if (groundToSky >= 1f)
+        {
+            env = Float3.Add(env, sun);
+        }
+
+        return env;
     }
 
     private static void WriteRgba(ArrayView<byte> display, Index1D index, Float3 color)
@@ -417,14 +639,15 @@ internal static class IlgpuPathTracerKernels
     }
 
     private static uint CreateRng(Index1D index, int sampleIndex, int width) =>
-        (uint)(42 + sampleIndex * 100_000 + index * 7919 + width);
+        (uint)(index + sampleIndex * 719393 + width * 97 + 42);
 
     private static float NextFloat(ref uint state)
     {
-        state ^= state << 13;
-        state ^= state >> 17;
-        state ^= state << 5;
-        return (state & 0xFFFFFF) / (float)0x1000000;
+        // PCG (Lague / pcg-random.org).
+        state = state * 747796405u + 2891336453u;
+        var result = ((state >> (int)((state >> 28) + 4)) ^ state) * 277803737u;
+        result = (result >> 22) ^ result;
+        return (result & 0xFFFFFF) / (float)0x1000000;
     }
 
     private struct Hit
@@ -432,12 +655,14 @@ internal static class IlgpuPathTracerKernels
         public int MaterialIndex;
         public Float3 Point;
         public Float3 Normal;
+        public float Distance;
 
-        public Hit(int materialIndex, Float3 point, Float3 normal)
+        public Hit(int materialIndex, Float3 point, Float3 normal, float distance)
         {
             MaterialIndex = materialIndex;
             Point = point;
             Normal = normal;
+            Distance = distance;
         }
     }
 }

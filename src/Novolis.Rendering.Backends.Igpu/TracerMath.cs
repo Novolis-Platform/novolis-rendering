@@ -30,4 +30,13 @@ internal static class TracerMath
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static float Clamp(float v, float min, float max) => v < min ? min : v > max ? max : v;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static float Exp(float v) => MathF.Exp(v);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static float Log(float v) => MathF.Log(v);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static float Pow(float v, float e) => MathF.Pow(v, e);
 }

@@ -23,7 +23,7 @@ Governance: [library-boundaries.md](https://github.com/Novolis-Platform/novolis-
 | Phase 7 Quality | `NOV2005` bans Scene in Raylib; `FramebufferGoldenAssert`; pinned UnitCubeRoom SHA-256; Math BVH |
 
 **Pinned golden (CPU deterministic):** UnitCubeRoom, 32×24, samples 0+1, LookAt `(1.2,0.8,2)→0`, FOV 55° →  
-`dbaa0f1b6ef1df3d7fead877150e1428c0d5d27c6589b66ceb07b94979eaa315`
+`e1f7c0113c5708b9d6e7aa177f8dd08e78b4897b429b2d2b2f3d3a144efcaa2f`
 
 ---
 
@@ -75,12 +75,19 @@ dotnet test d:\novolis\novolis-rendering\tests\Novolis.Rendering.Unit\Novolis.Re
 
 ---
 
-## Explicitly out of v1 (future, not blocking)
+## Post-v1 (in progress / next)
 
-- Hardware RTX / full Vulkan RT pipeline in Silk.Compute + GAME upload of `CompiledScene`
-- Texture atlas / `TextureHandle` authoring
-- OpenGL compute backend
-- Production GGX / Burley SSS fidelity beyond demo approximations
+Inspired by [Sebastian Lague’s Ray-Tracing](https://github.com/SebLague/Ray-Tracing) (throughput paths, RR, Fresnel glass, sky+sun, near-child BVH order):
+
+- [x] GPU-first interactive path: Lague-style scatter on ILGPU + CPU parity
+- [x] Glass on GPU (was missing → broken cubes in Studio)
+- [ ] Mesh vertex normals / multi-model local BVH
+- [ ] Debug vis modes (tri/box heatmaps)
+- Hardware RTX / full Vulkan RT in Silk.Compute + GAME upload
+- Texture atlas / OpenGL compute / production SSS
+
+## Explicitly deferred
+
 - Registry republish ceremony beyond normal `merge.yml`
 
 ---

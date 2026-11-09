@@ -7,7 +7,7 @@ namespace Novolis.Rendering.PathTrace.Demos;
 public sealed class PathTraceBackgroundWorker : IDisposable
 {
     /// <summary>Minimum time between orbit preview publishes (reduces noisy pose flicker).</summary>
-    private const int OrbitPreviewMinIntervalMs = 150;
+    private const int OrbitPreviewMinIntervalMs = 80;
 
     private IRayTracingBackend _backend;
     private readonly PathTraceDisplayBuffer _display;

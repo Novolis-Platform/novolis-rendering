@@ -4,11 +4,16 @@ using Novolis.Rendering.Runtime;
 
 namespace Novolis.Rendering.Backends.Cpu;
 
+/// <summary>
+/// CPU path tracer. Bounce math aligned with the ILGPU kernel (Lague-style throughput,
+/// Russian roulette, Fresnel glass, sky + sun disc).
+/// </summary>
 internal static class PathTracerEngine
 {
-    private const int MaxDepth = 4;
+    private const int MaxDepth = 5;
     private const float Epsilon = 1e-4f;
     private const int TileSize = 32;
+    private const float DisplayExposure = 1.6f;
 
     public static void RenderSample(
         Vector3[] accumulation,
@@ -53,8 +58,7 @@ internal static class PathTracerEngine
                     // Row 0 is the top of the framebuffer (matches Silk/OpenGL blit UVs).
                     var v = (1f - 2f * (y + jitterY) / height) * tanHalfFov;
                     var dir = Vector3.Normalize(camera.Forward + u * camera.Right + v * camera.Up);
-                    var ray = new Ray(camera.Position, dir);
-                    var radiance = Trace(in ray, scene, 0, ref rng);
+                    var radiance = TracePath(camera.Position, dir, scene, ref rng);
                     var idx = y * width + x;
                     var blended = accumulation[idx] + radiance;
                     accumulation[idx] = blended;
@@ -64,40 +68,185 @@ internal static class PathTracerEngine
         });
     }
 
-    private static Vector3 Trace(in Ray ray, CompiledScene scene, int depth, ref Random rng)
+    private static Vector3 TracePath(Vector3 origin, Vector3 direction, CompiledScene scene, ref Random rng)
     {
-        if (!IntersectScene(in ray, scene, out var hit))
+        var throughput = Vector3.One;
+        var radiance = Vector3.Zero;
+
+        for (var depth = 0; depth < MaxDepth; depth++)
         {
-            return SampleSky(ray.Direction);
+            var ray = new Ray(origin, direction);
+            if (!IntersectScene(in ray, scene, out var hit))
+            {
+                radiance += throughput * SampleSky(direction, scene);
+                break;
+            }
+
+            var mat = scene.Materials[hit.MaterialIndex];
+            if (mat.Model == MaterialModel.Emissive)
+            {
+                radiance += throughput * new Vector3(mat.A.X, mat.A.Y, mat.A.Z) * mat.A.W;
+                break;
+            }
+
+            if (mat.Model == MaterialModel.Glass)
+            {
+                if (!ScatterGlass(ref origin, ref direction, ref throughput, in hit, mat, ref rng))
+                {
+                    break;
+                }
+            }
+            else
+            {
+                radiance += throughput * DirectLighting(direction, in hit, scene, mat);
+                if (mat.B.Y > 1e-5f)
+                {
+                    radiance += throughput * new Vector3(mat.C.X, mat.C.Y, mat.C.Z) * mat.B.Y;
+                }
+
+                if (!ScatterStandard(ref origin, ref direction, ref throughput, in hit, mat, ref rng))
+                {
+                    break;
+                }
+            }
+
+            if (depth >= 2)
+            {
+                var p = MathF.Min(MathF.Max(throughput.X, MathF.Max(throughput.Y, throughput.Z)), 0.95f);
+                if (rng.NextDouble() >= p)
+                {
+                    break;
+                }
+
+                throughput /= MathF.Max(p, 1e-4f);
+            }
         }
 
-        var mat = scene.Materials[hit.MaterialIndex];
-        return mat.Model switch
-        {
-            MaterialModel.Emissive => EmissiveShade(mat),
-            MaterialModel.Glass => GlassShade(in ray, in hit, scene, depth, ref rng, mat),
-            MaterialModel.Skin => SkinShade(in ray, in hit, scene, depth, ref rng, mat),
-            _ => StandardShade(in ray, in hit, scene, depth, ref rng, mat),
-        };
+        return radiance;
     }
 
-    private static Vector3 StandardShade(
-        in Ray ray,
+    private static bool ScatterStandard(
+        ref Vector3 origin,
+        ref Vector3 direction,
+        ref Vector3 throughput,
         in Hit hit,
-        CompiledScene scene,
-        int depth,
-        ref Random rng,
-        GpuMaterial mat)
+        GpuMaterial mat,
+        ref Random rng)
+    {
+        var baseColor = new Vector3(mat.A.X, mat.A.Y, mat.A.Z);
+        var roughness = MathF.Max(mat.A.W, 0.04f);
+        var metallic = System.Math.Clamp(mat.B.X, 0f, 1f);
+        var smoothness = 1f - roughness;
+        var specularProbability = System.Math.Clamp(metallic * 0.85f + 0.05f, 0.05f, 1f);
+        var n = hit.Normal;
+
+        var isSpecular = rng.NextDouble() < specularProbability;
+        var diffuseDir = Vector3.Normalize(n + RandomDirection(ref rng));
+        if (Vector3.Dot(diffuseDir, n) <= 0f)
+        {
+            diffuseDir = Vector3.Normalize(n + RandomDirection(ref rng) * 0.5f);
+        }
+
+        var specularDir = Vector3.Normalize(Vector3.Reflect(direction, n));
+        direction = isSpecular
+            ? Vector3.Normalize(Vector3.Lerp(diffuseDir, specularDir, smoothness))
+            : diffuseDir;
+        origin = hit.Point + n * Epsilon;
+
+        var surface = isSpecular
+            ? Vector3.Lerp(new Vector3(0.04f), baseColor, metallic)
+            : baseColor * (1f - metallic * 0.85f);
+        throughput *= surface;
+        return throughput.X + throughput.Y + throughput.Z > 1e-5f;
+    }
+
+    private static bool ScatterGlass(
+        ref Vector3 origin,
+        ref Vector3 direction,
+        ref Vector3 throughput,
+        in Hit hit,
+        GpuMaterial mat,
+        ref Random rng)
+    {
+        var tint = new Vector3(mat.A.X, mat.A.Y, mat.A.Z);
+        var roughness = System.Math.Clamp(mat.A.W, 0f, 1f);
+        var ior = MathF.Max(mat.B.X, 1.01f);
+        var absorption = MathF.Max(mat.B.Y, 0f);
+        var n = hit.Normal;
+        var entering = Vector3.Dot(direction, n) < 0f;
+        if (!entering)
+        {
+            n = -n;
+            if (absorption > 1e-5f)
+            {
+                var atten = MathF.Exp(-hit.Distance * absorption);
+                throughput *= tint * atten;
+            }
+        }
+
+        var iorA = entering ? 1f : ior;
+        var iorB = entering ? ior : 1f;
+        var reflectWeight = FresnelReflectance(direction, n, iorA, iorB);
+        var reflectDir = Vector3.Normalize(Vector3.Reflect(direction, n));
+        var refractDir = Refract(direction, n, iorA, iorB);
+        var hasRefract = refractDir.LengthSquared() > 1e-8f;
+
+        var diffuseDir = Vector3.Normalize(n + RandomDirection(ref rng));
+        reflectDir = Vector3.Normalize(Vector3.Lerp(diffuseDir, reflectDir, 1f - roughness * 0.85f));
+        if (hasRefract)
+        {
+            refractDir = Vector3.Normalize(Vector3.Lerp(-diffuseDir, refractDir, 1f - roughness));
+        }
+
+        var followReflection = !hasRefract || rng.NextDouble() <= reflectWeight;
+        direction = followReflection ? reflectDir : refractDir;
+        origin = hit.Point + n * Epsilon * (followReflection ? 1f : -1f);
+        if (!followReflection)
+        {
+            throughput *= tint;
+        }
+
+        return throughput.X + throughput.Y + throughput.Z > 1e-5f;
+    }
+
+    private static float FresnelReflectance(Vector3 inDir, Vector3 normal, float iorA, float iorB)
+    {
+        var ratio = iorA / iorB;
+        var cosIn = System.Math.Clamp(-Vector3.Dot(inDir, normal), 0f, 1f);
+        var sin2 = ratio * ratio * (1f - cosIn * cosIn);
+        if (sin2 >= 1f)
+        {
+            return 1f;
+        }
+
+        var cosT = MathF.Sqrt(MathF.Max(0f, 1f - sin2));
+        var rPar = (iorB * cosIn - iorA * cosT) / (iorB * cosIn + iorA * cosT + 1e-8f);
+        var rPer = (iorA * cosIn - iorB * cosT) / (iorA * cosIn + iorB * cosT + 1e-8f);
+        return System.Math.Clamp(0.5f * (rPar * rPar + rPer * rPer), 0f, 1f);
+    }
+
+    private static Vector3 Refract(Vector3 inDir, Vector3 normal, float iorA, float iorB)
+    {
+        var ratio = iorA / iorB;
+        var cosIn = System.Math.Clamp(-Vector3.Dot(inDir, normal), 0f, 1f);
+        var sin2 = ratio * ratio * (1f - cosIn * cosIn);
+        if (sin2 > 1f)
+        {
+            return Vector3.Zero;
+        }
+
+        var cosT = MathF.Sqrt(MathF.Max(0f, 1f - sin2));
+        return Vector3.Normalize(ratio * inDir + (ratio * cosIn - cosT) * normal);
+    }
+
+    private static Vector3 DirectLighting(Vector3 incomingDirection, in Hit hit, CompiledScene scene, GpuMaterial mat)
     {
         var baseColor = new Vector3(mat.A.X, mat.A.Y, mat.A.Z);
         var roughness = MathF.Max(mat.A.W, 0.04f);
         var metallic = mat.B.X;
-        var emissionStrength = mat.B.Y;
-        var emissionColor = new Vector3(mat.C.X, mat.C.Y, mat.C.Z);
-
         var n = hit.Normal;
-        var v = Vector3.Normalize(-ray.Direction);
-        var radiance = emissionColor * emissionStrength;
+        var v = Vector3.Normalize(-incomingDirection);
+        var radiance = Vector3.Zero;
 
         foreach (var light in scene.Lights)
         {
@@ -105,100 +254,23 @@ internal static class PathTracerEngine
                 ? Vector3.Normalize(-light.DirectionOrPosition)
                 : Vector3.Normalize(light.DirectionOrPosition - hit.Point);
 
-            if (!ShadowRayClear(hit.Point, lightDir, scene, light.Kind == GpuLightKind.Directional ? 1e6f : (light.DirectionOrPosition - hit.Point).Length()))
+            var maxDist = light.Kind == GpuLightKind.Directional
+                ? 1e6f
+                : (light.DirectionOrPosition - hit.Point).Length();
+
+            if (!ShadowRayClear(hit.Point, lightDir, scene, maxDist))
             {
                 continue;
             }
 
             var ndotl = MathF.Max(0f, Vector3.Dot(n, lightDir));
             var diffuse = baseColor * (1f - metallic);
-            var spec = GgxSpec(n, v, lightDir, roughness, Vector3.One);
+            var f0 = Vector3.Lerp(new Vector3(0.04f), baseColor, metallic);
+            var spec = GgxSpec(n, v, lightDir, roughness, f0);
             radiance += (diffuse * ndotl + spec) * light.Color * light.Intensity;
         }
 
-        radiance += baseColor * 0.03f;
-
-        if (depth < MaxDepth && metallic > 0.75f)
-        {
-            var mirrorWeight = metallic * (1f - MathF.Min(roughness / 0.12f, 1f));
-            if (mirrorWeight > 0.01f)
-            {
-                var reflectDir = Vector3.Reflect(ray.Direction, n);
-                var reflectRay = new Ray(hit.Point + n * Epsilon, Vector3.Normalize(reflectDir));
-                radiance += baseColor * Trace(in reflectRay, scene, depth + 1, ref rng) * mirrorWeight;
-            }
-        }
-
-        if (depth < MaxDepth && roughness > 0.01f && rng.NextDouble() > metallic)
-        {
-            var bounceDir = CosineHemisphere(n, ref rng);
-            var bounce = new Ray(hit.Point + n * Epsilon, bounceDir);
-            radiance += baseColor * Trace(in bounce, scene, depth + 1, ref rng) * 0.5f;
-        }
-
         return radiance;
-    }
-
-    private static Vector3 GlassShade(
-        in Ray ray,
-        in Hit hit,
-        CompiledScene scene,
-        int depth,
-        ref Random rng,
-        GpuMaterial mat)
-    {
-        if (depth >= MaxDepth)
-        {
-            return new Vector3(mat.A.X, mat.A.Y, mat.A.Z);
-        }
-
-        var tint = new Vector3(mat.A.X, mat.A.Y, mat.A.Z);
-        var ior = MathF.Max(mat.B.X, 1f);
-        var n = hit.Normal;
-        var cosTheta = MathF.Min(1f, MathF.Max(-1f, Vector3.Dot(-ray.Direction, n)));
-        var entering = cosTheta > 0f;
-        if (!entering)
-        {
-            n = -n;
-            cosTheta = -cosTheta;
-        }
-
-        var eta = entering ? 1f / ior : ior;
-        var k = 1f - eta * eta * (1f - cosTheta * cosTheta);
-        Vector3 refractDir;
-        if (k < 0f)
-        {
-            refractDir = Vector3.Reflect(ray.Direction, n);
-        }
-        else
-        {
-            refractDir = Vector3.Normalize(eta * ray.Direction + (eta * cosTheta - MathF.Sqrt(k)) * n);
-        }
-
-        var refractRay = new Ray(hit.Point + refractDir * Epsilon, refractDir);
-        return tint * Trace(in refractRay, scene, depth + 1, ref rng);
-    }
-
-    private static Vector3 SkinShade(
-        in Ray ray,
-        in Hit hit,
-        CompiledScene scene,
-        int depth,
-        ref Random rng,
-        GpuMaterial mat)
-    {
-        var baseColor = new Vector3(mat.A.X, mat.A.Y, mat.A.Z);
-        var subsurface = mat.B.X;
-        var blood = new Vector3(mat.C.X, mat.C.Y, mat.C.Z);
-        var standardMat = new GpuMaterial(MaterialModel.Standard, mat.A, mat.B, mat.C);
-        var standard = StandardShade(in ray, in hit, scene, depth, ref rng, standardMat);
-        return Vector3.Lerp(standard, blood * subsurface + baseColor * 0.5f, subsurface * 0.35f);
-    }
-
-    private static Vector3 EmissiveShade(GpuMaterial mat)
-    {
-        var color = new Vector3(mat.A.X, mat.A.Y, mat.A.Z);
-        return color * mat.A.W;
     }
 
     private static Vector3 GgxSpec(Vector3 n, Vector3 v, Vector3 l, float roughness, Vector3 f0)
@@ -219,19 +291,16 @@ internal static class PathTracerEngine
         return f0 * d * ndotl;
     }
 
-    private static Vector3 CosineHemisphere(Vector3 normal, ref Random rng)
+    private static Vector3 RandomDirection(ref Random rng)
     {
-        var u1 = (float)rng.NextDouble();
-        var u2 = (float)rng.NextDouble();
-        var r = MathF.Sqrt(u1);
-        var phi = 2f * MathF.PI * u2;
-        var x = r * MathF.Cos(phi);
-        var y = r * MathF.Sin(phi);
-        var z = MathF.Sqrt(MathF.Max(0f, 1f - u1));
-        var up = MathF.Abs(normal.Y) < 0.999f ? Vector3.UnitY : Vector3.UnitX;
-        var tangent = Vector3.Normalize(Vector3.Cross(up, normal));
-        var bitangent = Vector3.Cross(normal, tangent);
-        return Vector3.Normalize(tangent * x + bitangent * y + normal * z);
+        var theta = 2f * MathF.PI * (float)rng.NextDouble();
+        var rho = MathF.Sqrt(-2f * MathF.Log(MathF.Max(1e-6f, (float)rng.NextDouble())));
+        var x = rho * MathF.Cos(theta);
+        var y = rho * MathF.Sin(theta);
+        theta = 2f * MathF.PI * (float)rng.NextDouble();
+        rho = MathF.Sqrt(-2f * MathF.Log(MathF.Max(1e-6f, (float)rng.NextDouble())));
+        var z = rho * MathF.Cos(theta);
+        return Vector3.Normalize(new Vector3(x, y, z));
     }
 
     private static bool ShadowRayClear(Vector3 origin, Vector3 dir, CompiledScene scene, float maxDist)
@@ -266,7 +335,7 @@ internal static class PathTracerEngine
         }
 
         var materialIndex = scene.Triangles[triangleIndex].MaterialIndex;
-        hit = new Hit(materialIndex, ray.PointAt(distance), normal);
+        hit = new Hit(materialIndex, ray.PointAt(distance), normal, distance);
         return true;
     }
 
@@ -297,25 +366,54 @@ internal static class PathTracerEngine
 
             found = true;
             bestT = t;
-            hit = new Hit(tri.MaterialIndex, ray.PointAt(t), n);
+            hit = new Hit(tri.MaterialIndex, ray.PointAt(t), n, t);
         }
 
         return found;
     }
 
-    private static Vector3 SampleSky(Vector3 direction)
+    private static Vector3 SampleSky(Vector3 direction, CompiledScene scene)
     {
-        var t = System.Math.Clamp(direction.Y * 0.5f + 0.5f, 0f, 1f);
-        var low = new Vector3(40f / 255f, 44f / 255f, 52f / 255f);
-        var high = new Vector3(120f / 255f, 168f / 255f, 220f / 255f);
-        return Vector3.Lerp(low, high, t);
+        var ground = new Vector3(0.35f, 0.3f, 0.35f);
+        var horizon = Vector3.One;
+        var zenith = new Vector3(0.08f, 0.37f, 0.73f);
+        var skyT = MathF.Pow(System.Math.Clamp((direction.Y + 0.01f) / 0.4f, 0f, 1f), 0.35f);
+        var groundToSky = System.Math.Clamp(direction.Y * 50f + 0.5f, 0f, 1f);
+        var sky = Vector3.Lerp(horizon, zenith, skyT);
+        var env = Vector3.Lerp(ground, sky, groundToSky);
+
+        var sun = Vector3.Zero;
+        foreach (var light in scene.Lights)
+        {
+            if (light.Kind != GpuLightKind.Directional)
+            {
+                continue;
+            }
+
+            var dirToSun = Vector3.Normalize(-light.DirectionOrPosition);
+            var sunDisc = MathF.Pow(MathF.Max(0f, Vector3.Dot(direction, dirToSun)), 500f) * 10f * light.Intensity;
+            sun += light.Color * sunDisc;
+        }
+
+        if (groundToSky >= 1f)
+        {
+            env += sun;
+        }
+
+        return env;
     }
 
     private static Rgba32 ToRgba(Vector3 c)
     {
-        static byte ToByte(float v) => (byte)System.Math.Clamp((int)(v * 255f), 0, 255);
+        static byte ToByte(float v)
+        {
+            var exposed = v * DisplayExposure;
+            var gamma = MathF.Sqrt(MathF.Max(exposed, 0f));
+            return (byte)System.Math.Clamp((int)(gamma * 255f), 0, 255);
+        }
+
         return new Rgba32(ToByte(c.X), ToByte(c.Y), ToByte(c.Z));
     }
 
-    private readonly record struct Hit(int MaterialIndex, Vector3 Point, Vector3 Normal);
+    private readonly record struct Hit(int MaterialIndex, Vector3 Point, Vector3 Normal, float Distance);
 }

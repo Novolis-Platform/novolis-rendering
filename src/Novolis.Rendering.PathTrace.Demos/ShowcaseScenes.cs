@@ -52,7 +52,7 @@ public static class ShowcaseScenes
             .AddBox(
                 new Vector3(0.42f, 0.18f, -0.35f),
                 new Vector3(0.12f, 0.12f, 0.12f),
-                MaterialPresets.Glass(tint: new Vector3(0.75f, 0.9f, 1f), roughness: 0.02f, ior: 1.45f))
+                MaterialPresets.Glass(tint: new Vector3(0.75f, 0.9f, 1f), roughness: 0.02f, ior: 1.45f, absorption: 0.35f))
             .AddBox(
                 new Vector3(-0.12f, 0.55f, 0.38f),
                 new Vector3(0.04f, 0.04f, 0.04f),

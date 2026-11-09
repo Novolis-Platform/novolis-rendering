@@ -103,6 +103,14 @@ public struct Float3
             a.Z * b.X - a.X * b.Z,
             a.X * b.Y - a.Y * b.X);
 
+    /// <summary>Squared Euclidean length.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static float LengthSquared(Float3 v) => Dot(v, v);
+
+    /// <summary>Max RGB component.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static float MaxComponent(Float3 v) => TracerMath.Max(v.X, TracerMath.Max(v.Y, v.Z));
+
     /// <summary>Euclidean length.</summary>
     /// <param name="v">Vector.</param>
     /// <returns>Length of <paramref name="v"/>.</returns>
