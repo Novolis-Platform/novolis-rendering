@@ -74,6 +74,23 @@ public sealed class PathTraceBackgroundWorker : IDisposable
     }
 
     /// <summary>
+    /// Marks accumulation for reset on the next job without cancelling the in-flight one.
+    /// Used for auto-orbit sample buckets so poses can refine without a hard interrupt.
+    /// </summary>
+    public void ArmAccumulationReset()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        lock (_gate)
+        {
+            _resetPending = true;
+        }
+    }
+
+    /// <summary>
     /// Cheap moving-camera preview (orbit / drag / zoom): coalesces to the latest pose while busy
     /// and rate-limits starts so drag does not cancel/restart every mouse delta.
     /// </summary>
