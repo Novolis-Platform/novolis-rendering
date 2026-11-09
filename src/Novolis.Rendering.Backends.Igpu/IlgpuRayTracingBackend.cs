@@ -37,9 +37,19 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
     private bool _useGpu;
     private bool _gpuDisplayDirty;
     private string? _gpuFallbackReason;
-    private Action<Index1D, int, int, int, IlgpuCameraParams, ArrayView<Float3>, ArrayView<byte>,
+    private int _maxTraceDepth = 5;
+    private Action<Index1D, int, int, int, int, IlgpuCameraParams, ArrayView<Float3>, ArrayView<byte>,
         ArrayView<GpuTriangle>, ArrayView<GpuMaterial>, ArrayView<GpuLight>, int, ArrayView<GpuBvhNode>, int,
         ArrayView<int>>? _traceKernel;
+
+    /// <summary>
+    /// Bounce budget for subsequent kernels (1–5). Interactive hosts drop this while the camera moves.
+    /// </summary>
+    public int MaxTraceDepth
+    {
+        get => _maxTraceDepth;
+        set => _maxTraceDepth = value < 1 ? 1 : value > 5 ? 5 : value;
+    }
 
     /// <summary>Creates an ILGPU backend; uses CPU fallback when deterministic or when no GPU is available.</summary>
     /// <param name="deterministic">When true, delegates to a deterministic CPU tracer.</param>
@@ -178,6 +188,18 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
         CameraSnapshot camera,
         int startSampleIndex,
         int sampleCount,
+        CancellationToken cancellationToken = default) =>
+        RenderBatchAsync(camera, startSampleIndex, sampleCount, flushToCpu: true, cancellationToken);
+
+    /// <summary>
+    /// Queues <paramref name="sampleCount"/> samples and optionally flushes the display once.
+    /// Pass <paramref name="flushToCpu"/> false to keep accumulation on the GPU for profiling or pipelining.
+    /// </summary>
+    public ValueTask RenderBatchAsync(
+        CameraSnapshot camera,
+        int startSampleIndex,
+        int sampleCount,
+        bool flushToCpu,
         CancellationToken cancellationToken = default)
     {
         if (_cpuFallback is not null)
@@ -211,10 +233,30 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
             cancellationToken.ThrowIfCancellationRequested();
             _sampleCount = startSampleIndex + sampleCount;
             _gpuDisplayDirty = true;
-            FlushDisplayToCpuUnlocked();
+            if (flushToCpu)
+            {
+                FlushDisplayToCpuUnlocked();
+            }
         }
 
         return ValueTask.CompletedTask;
+    }
+
+    /// <summary>
+    /// Synchronizes and copies the GPU display buffer to CPU pixels when dirty.
+    /// No-op when the display is already current.
+    /// </summary>
+    public void FlushCpuDisplay()
+    {
+        if (_cpuFallback is not null)
+        {
+            return;
+        }
+
+        lock (_renderLock)
+        {
+            FlushDisplayToCpuUnlocked();
+        }
     }
 
     /// <inheritdoc />
@@ -267,6 +309,15 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
             return false;
         }
 
+        // Prefer the DMA staging buffer — Flush writes here without a second Rgba32 memcpy.
+        if (_displayBytes is not null && _displayBytes.Length == _width * _height * 4)
+        {
+            pixels = MemoryMarshal.Cast<byte, Rgba32>(_displayBytes.AsSpan());
+            width = _width;
+            height = _height;
+            return true;
+        }
+
         pixels = _display.AsSpan();
         width = _display.Width;
         height = _display.Height;
@@ -277,7 +328,7 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
     {
         try
         {
-            _traceKernel = _accelerator!.LoadAutoGroupedStreamKernel<Index1D, int, int, int, IlgpuCameraParams,
+            _traceKernel = _accelerator!.LoadAutoGroupedStreamKernel<Index1D, int, int, int, int, IlgpuCameraParams,
                 ArrayView<Float3>, ArrayView<byte>, ArrayView<GpuTriangle>, ArrayView<GpuMaterial>, ArrayView<GpuLight>,
                 int, ArrayView<GpuBvhNode>, int, ArrayView<int>>(IlgpuPathTracerKernels.TracePixelKernel);
             error = null;
@@ -300,19 +351,10 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
 
     private void ResetAccumulationCore()
     {
+        // Sample index 0 replaces accumulation in the kernel — skip MemSet+Synchronize.
+        // Callers must restart at sample 0 after ResetAccumulation (all interactive hosts do).
         _sampleCount = 0;
-        _display?.Clear(Rgba32.Black);
         _gpuDisplayDirty = false;
-        if (_useGpu && _accumulationGpu is not null)
-        {
-            _accumulationGpu.MemSetToZero();
-            if (_displayGpu is not null)
-            {
-                _displayGpu.MemSetToZero();
-            }
-
-            _accelerator!.Synchronize();
-        }
     }
 
     private void EnqueueTraceKernel(CameraSnapshot camera, int sampleIndex)
@@ -326,6 +368,7 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
             _width,
             _height,
             sampleIndex,
+            _maxTraceDepth,
             cameraParams,
             _accumulationGpu!.View,
             _displayGpu!.View,
@@ -340,15 +383,14 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
 
     private void FlushDisplayToCpuUnlocked()
     {
-        if (!_gpuDisplayDirty || _display is null || _displayGpu is null || _displayBytes is null)
+        if (!_gpuDisplayDirty || _displayGpu is null || _displayBytes is null)
         {
             return;
         }
 
-        _accelerator!.Synchronize();
+        // CopyToCPU waits for outstanding work on the default stream — no extra Synchronize.
+        // Staging bytes are exposed via MemoryMarshal.Cast in TryGetCpuPixels (no second memcpy).
         _displayGpu.CopyToCPU(_displayBytes);
-        MemoryMarshal.Cast<byte, Rgba32>(_displayBytes.AsSpan())
-            .CopyTo(_display.Pixels);
         _gpuDisplayDirty = false;
     }
 

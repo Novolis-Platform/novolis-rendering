@@ -10,7 +10,7 @@ namespace Novolis.Rendering.Backends.Cpu;
 /// </summary>
 internal static class PathTracerEngine
 {
-    private const int MaxDepth = 5;
+    private const int AbsoluteMaxDepth = 5;
     private const float Epsilon = 1e-4f;
     private const int TileSize = 32;
     private const float DisplayExposure = 1.6f;
@@ -23,8 +23,18 @@ internal static class PathTracerEngine
         CameraSnapshot camera,
         CompiledScene scene,
         int sampleIndex,
-        bool deterministic)
+        bool deterministic,
+        int maxDepth = AbsoluteMaxDepth)
     {
+        if (maxDepth < 1)
+        {
+            maxDepth = 1;
+        }
+        else if (maxDepth > AbsoluteMaxDepth)
+        {
+            maxDepth = AbsoluteMaxDepth;
+        }
+
         var invCount = 1f / (sampleIndex + 1);
         var tanHalfFov = MathF.Tan(camera.VerticalFovRadians * 0.5f);
         var aspect = (float)width / height;
@@ -58,7 +68,7 @@ internal static class PathTracerEngine
                     // Row 0 is the top of the framebuffer (matches Silk/OpenGL blit UVs).
                     var v = (1f - 2f * (y + jitterY) / height) * tanHalfFov;
                     var dir = Vector3.Normalize(camera.Forward + u * camera.Right + v * camera.Up);
-                    var radiance = TracePath(camera.Position, dir, scene, ref rng);
+                    var radiance = TracePath(camera.Position, dir, scene, ref rng, maxDepth);
                     var idx = y * width + x;
                     // sampleIndex 0 replaces so interactive camera moves skip a full accumulation clear.
                     var blended = sampleIndex == 0 ? radiance : accumulation[idx] + radiance;
@@ -69,12 +79,12 @@ internal static class PathTracerEngine
         });
     }
 
-    private static Vector3 TracePath(Vector3 origin, Vector3 direction, CompiledScene scene, ref Random rng)
+    private static Vector3 TracePath(Vector3 origin, Vector3 direction, CompiledScene scene, ref Random rng, int maxDepth)
     {
         var throughput = Vector3.One;
         var radiance = Vector3.Zero;
 
-        for (var depth = 0; depth < MaxDepth; depth++)
+        for (var depth = 0; depth < maxDepth; depth++)
         {
             var ray = new Ray(origin, direction);
             if (!IntersectScene(in ray, scene, out var hit))

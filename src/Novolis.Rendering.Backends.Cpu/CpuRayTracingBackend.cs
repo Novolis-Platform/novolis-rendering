@@ -16,10 +16,18 @@ public sealed class CpuRayTracingBackend : IRayTracingBackend
     private Vector3[]? _accumulation;
     private CompiledScene _scene = CompiledScene.Empty;
     private int _sampleCount;
+    private int _maxTraceDepth = 5;
 
     /// <summary>Creates a CPU path tracer, optionally with deterministic sampling for tests.</summary>
     /// <param name="deterministic">When true, uses a fixed RNG sequence.</param>
     public CpuRayTracingBackend(bool deterministic = false) => _deterministic = deterministic;
+
+    /// <summary>Bounce budget for subsequent samples (1–5).</summary>
+    public int MaxTraceDepth
+    {
+        get => _maxTraceDepth;
+        set => _maxTraceDepth = value < 1 ? 1 : value > 5 ? 5 : value;
+    }
 
     /// <inheritdoc />
     public string BackendLabel => _deterministic ? "CPU (deterministic)" : "CPU";
@@ -123,7 +131,8 @@ public sealed class CpuRayTracingBackend : IRayTracingBackend
             camera,
             _scene,
             sampleIndex,
-            _deterministic);
+            _deterministic,
+            _maxTraceDepth);
 
         _sampleCount = sampleIndex + 1;
     }

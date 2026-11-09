@@ -1,33 +1,44 @@
+using Novolis.Rendering.Backends.Cpu;
 using Novolis.Rendering.Backends.Igpu;
 using Novolis.Rendering.Runtime;
 
 namespace Novolis.Rendering.PathTrace.Demos;
 
-/// <summary>Runs path-tracing samples on a background thread for interactive demos.</summary>
+/// <summary>
+/// Dedicated pump thread for interactive path-trace jobs (avoids thread-pool <c>Task.Run</c> scheduling jitter).
+/// </summary>
 public sealed class PathTraceBackgroundWorker : IDisposable
 {
-    /// <summary>
-    /// Idle gap after a moving preview when nothing is pending. Pending poses chain immediately
-    /// so orbit/drag stay continuous instead of waiting out this delay on a stale camera.
-    /// </summary>
-    private const int MovingPreviewMinIntervalMs = 0;
-
     private IRayTracingBackend _backend;
     private readonly PathTraceDisplayBuffer _display;
     private readonly object _gate = new();
-    private Task? _task;
+    private readonly AutoResetEvent _wake = new(false);
+    private readonly Thread _pump;
     private CancellationTokenSource _cts = new();
     private bool _resetPending;
     private bool _disposed;
+    private bool _jobActive;
+    private bool _pumpRunning = true;
     private CameraSnapshot? _pendingMovingCamera;
     private int _pendingMovingSamples;
-    private long _nextMovingAllowedTick;
+    private CameraSnapshot? _pendingAccumulateCamera;
+    private int _pendingAccumulateStart;
+    private int _pendingAccumulateCount;
+    private bool _pendingAccumulateForceReset;
+    private int _pendingAccumulateSampleAfter;
 
     /// <summary>Creates a worker bound to a backend and display buffer.</summary>
     public PathTraceBackgroundWorker(IRayTracingBackend backend, PathTraceDisplayBuffer display)
     {
         _backend = backend;
         _display = display;
+        _pump = new Thread(PumpLoop)
+        {
+            IsBackground = true,
+            Name = "Novolis.PathTrace.Pump",
+            Priority = ThreadPriority.AboveNormal,
+        };
+        _pump.Start();
     }
 
     /// <summary>Points the worker at a new backend after <see cref="WaitForIdle"/>.</summary>
@@ -38,7 +49,7 @@ public sealed class PathTraceBackgroundWorker : IDisposable
         {
             _backend = backend;
             _resetPending = true;
-            _pendingMovingCamera = null;
+            ClearPendingLocked();
         }
     }
 
@@ -49,7 +60,7 @@ public sealed class PathTraceBackgroundWorker : IDisposable
         {
             lock (_gate)
             {
-                return _task is { IsCompleted: false };
+                return _jobActive;
             }
         }
     }
@@ -68,9 +79,11 @@ public sealed class PathTraceBackgroundWorker : IDisposable
         lock (_gate)
         {
             _resetPending = true;
-            _pendingMovingCamera = null;
+            ClearPendingLocked();
             CancelLocked();
         }
+
+        _wake.Set();
     }
 
     /// <summary>
@@ -91,10 +104,9 @@ public sealed class PathTraceBackgroundWorker : IDisposable
     }
 
     /// <summary>
-    /// Cheap moving-camera preview (orbit / drag / zoom): coalesces to the latest pose while busy
-    /// and rate-limits starts so drag does not cancel/restart every mouse delta.
+    /// Cheap moving-camera preview (orbit / drag / zoom): coalesces to the latest pose while busy.
     /// </summary>
-    /// <returns><see langword="true"/> when a new background job started.</returns>
+    /// <returns><see langword="true"/> when a new background job was armed.</returns>
     public bool TryEnqueueMovingPreview(CameraSnapshot camera, int samplesPerPose = 4)
     {
         if (_disposed || samplesPerPose <= 0)
@@ -106,19 +118,17 @@ public sealed class PathTraceBackgroundWorker : IDisposable
         {
             _pendingMovingCamera = camera;
             _pendingMovingSamples = samplesPerPose;
-            if (_task is { IsCompleted: false })
+            _pendingAccumulateCamera = null;
+            if (_jobActive)
             {
                 return false;
             }
 
-            if (Environment.TickCount64 < _nextMovingAllowedTick)
-            {
-                return false;
-            }
-
-            StartMovingFromPendingLocked();
-            return true;
+            _jobActive = true;
         }
+
+        _wake.Set();
+        return true;
     }
 
     /// <summary>Alias for <see cref="TryEnqueueMovingPreview"/> (orbit hosts).</summary>
@@ -135,7 +145,7 @@ public sealed class PathTraceBackgroundWorker : IDisposable
 
         lock (_gate)
         {
-            if (_task is { IsCompleted: false })
+            if (_jobActive)
             {
                 return false;
             }
@@ -148,30 +158,33 @@ public sealed class PathTraceBackgroundWorker : IDisposable
                 sample = 0;
             }
 
-            var ct = _cts.Token;
-            var backend = _backend;
-            _task = Task.Run(() => RunJob(backend, camera, start, batchSize, forceReset, ct), ct);
-            sample = start + batchSize;
-            return true;
+            _pendingAccumulateCamera = camera;
+            _pendingAccumulateStart = start;
+            _pendingAccumulateCount = batchSize;
+            _pendingAccumulateForceReset = forceReset;
+            _pendingAccumulateSampleAfter = start + batchSize;
+            sample = _pendingAccumulateSampleAfter;
+            _jobActive = true;
         }
+
+        _wake.Set();
+        return true;
     }
 
     /// <summary>Blocks until the current background job completes (or is cancelled).</summary>
     public void WaitForIdle()
     {
-        Task? task;
-        lock (_gate)
+        while (true)
         {
-            task = _task;
-        }
+            lock (_gate)
+            {
+                if (!_jobActive)
+                {
+                    return;
+                }
+            }
 
-        try
-        {
-            task?.GetAwaiter().GetResult();
-        }
-        catch (OperationCanceledException)
-        {
-            // Expected after RequestReset.
+            Thread.Sleep(0);
         }
     }
 
@@ -185,67 +198,99 @@ public sealed class PathTraceBackgroundWorker : IDisposable
 
         _disposed = true;
         RequestReset();
+        lock (_gate)
+        {
+            _pumpRunning = false;
+        }
+
+        _wake.Set();
+        _pump.Join(millisecondsTimeout: 5_000);
         WaitForIdle();
         _cts.Dispose();
+        _wake.Dispose();
     }
 
-    private void StartMovingFromPendingLocked()
+    private void PumpLoop()
     {
-        if (_pendingMovingCamera is not { } camera)
+        while (true)
         {
-            return;
-        }
-
-        var samples = _pendingMovingSamples;
-        _pendingMovingCamera = null;
-        // Do not set _resetPending — sampleIndex 0 replaces accumulation (avoids GPU MemSet+sync).
-        var ct = _cts.Token;
-        var backend = _backend;
-        _task = Task.Run(() => RunMovingJob(backend, camera, samples, ct), ct);
-    }
-
-    private void RunMovingJob(IRayTracingBackend backend, CameraSnapshot camera, int sampleCount, CancellationToken ct)
-    {
-        try
-        {
-            // sampleIndex 0 replaces accumulation in GPU/CPU kernels — skip MemSet+Synchronize reset.
-            RunJob(backend, camera, startSampleIndex: 0, sampleCount, forceReset: false, ct);
-        }
-        catch (OperationCanceledException)
-        {
-            // Soft reset / dispose.
-        }
-        finally
-        {
+            Job job;
             lock (_gate)
             {
-                if (_disposed)
+                if (!_pumpRunning && !_jobActive)
                 {
-                    // leave gate
+                    return;
                 }
-                else if (_pendingMovingCamera is not null)
+
+                if (!TryDequeueJobLocked(out job))
                 {
-                    // Latest orbit/drag pose wins: chain without waiting for the next UI tick or idle gap.
-                    StartMovingFromPendingLocked();
+                    _jobActive = false;
                 }
-                else
+            }
+
+            if (job.Kind == JobKind.None)
+            {
+                _wake.WaitOne();
+                continue;
+            }
+
+            try
+            {
+                Execute(job);
+            }
+            catch (OperationCanceledException)
+            {
+                // Soft reset / dispose.
+            }
+            finally
+            {
+                lock (_gate)
                 {
-                    _nextMovingAllowedTick = Environment.TickCount64 + MovingPreviewMinIntervalMs;
+                    if (_pendingMovingCamera is not null || _pendingAccumulateCamera is not null)
+                    {
+                        _jobActive = true;
+                    }
+                    else
+                    {
+                        _jobActive = false;
+                    }
                 }
             }
         }
     }
 
-    private void RunJob(
-        IRayTracingBackend backend,
-        CameraSnapshot camera,
-        int startSampleIndex,
-        int sampleCount,
-        bool forceReset,
-        CancellationToken ct)
+    private bool TryDequeueJobLocked(out Job job)
     {
+        if (_pendingMovingCamera is { } moving)
+        {
+            job = new Job(JobKind.Moving, moving, start: 0, _pendingMovingSamples, forceReset: false);
+            _pendingMovingCamera = null;
+            return true;
+        }
+
+        if (_pendingAccumulateCamera is { } accumulate)
+        {
+            job = new Job(
+                JobKind.Accumulate,
+                accumulate,
+                _pendingAccumulateStart,
+                _pendingAccumulateCount,
+                _pendingAccumulateForceReset);
+            _pendingAccumulateCamera = null;
+            return true;
+        }
+
+        job = default;
+        return false;
+    }
+
+    private void Execute(Job job)
+    {
+        var ct = _cts.Token;
+        var backend = _backend;
         ct.ThrowIfCancellationRequested();
-        var reset = forceReset;
+
+        var reset = job.ForceReset;
         lock (_gate)
         {
             if (_resetPending)
@@ -255,16 +300,34 @@ public sealed class PathTraceBackgroundWorker : IDisposable
             }
         }
 
+        var start = job.Start;
         if (reset)
         {
             backend.ResetAccumulation();
-            startSampleIndex = 0;
+            start = 0;
         }
 
         ct.ThrowIfCancellationRequested();
-        RenderSamples(backend, camera, startSampleIndex, sampleCount, ct);
+        ApplyTraceDepth(backend, job.Kind == JobKind.Moving ? MovingPreviewMaxDepth : FullTraceMaxDepth);
+        RenderSamples(backend, job.Camera, start, job.SampleCount, ct);
         ct.ThrowIfCancellationRequested();
         PublishFrame(backend);
+    }
+
+    private const int MovingPreviewMaxDepth = 2;
+    private const int FullTraceMaxDepth = 5;
+
+    private static void ApplyTraceDepth(IRayTracingBackend backend, int maxDepth)
+    {
+        switch (backend)
+        {
+            case IlgpuRayTracingBackend igpu:
+                igpu.MaxTraceDepth = maxDepth;
+                break;
+            case CpuRayTracingBackend cpu:
+                cpu.MaxTraceDepth = maxDepth;
+                break;
+        }
     }
 
     private static void RenderSamples(
@@ -277,7 +340,9 @@ public sealed class PathTraceBackgroundWorker : IDisposable
         if (backend is IlgpuRayTracingBackend igpu)
         {
             ct.ThrowIfCancellationRequested();
-            igpu.RenderBatchAsync(camera, startSampleIndex, sampleCount, ct).GetAwaiter().GetResult();
+            igpu.RenderBatchAsync(camera, startSampleIndex, sampleCount, flushToCpu: true, ct)
+                .GetAwaiter()
+                .GetResult();
             return;
         }
 
@@ -298,6 +363,12 @@ public sealed class PathTraceBackgroundWorker : IDisposable
         _display.Publish(pixels, w, h, backend.SampleCount);
     }
 
+    private void ClearPendingLocked()
+    {
+        _pendingMovingCamera = null;
+        _pendingAccumulateCamera = null;
+    }
+
     private void CancelLocked()
     {
         try
@@ -311,5 +382,30 @@ public sealed class PathTraceBackgroundWorker : IDisposable
 
         _cts.Dispose();
         _cts = new CancellationTokenSource();
+    }
+
+    private enum JobKind : byte
+    {
+        None = 0,
+        Moving = 1,
+        Accumulate = 2,
+    }
+
+    private readonly struct Job
+    {
+        public Job(JobKind kind, CameraSnapshot camera, int start, int sampleCount, bool forceReset)
+        {
+            Kind = kind;
+            Camera = camera;
+            Start = start;
+            SampleCount = sampleCount;
+            ForceReset = forceReset;
+        }
+
+        public JobKind Kind { get; }
+        public CameraSnapshot Camera { get; }
+        public int Start { get; }
+        public int SampleCount { get; }
+        public bool ForceReset { get; }
     }
 }

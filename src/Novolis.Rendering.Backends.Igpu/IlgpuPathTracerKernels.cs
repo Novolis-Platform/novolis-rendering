@@ -11,7 +11,7 @@ namespace Novolis.Rendering.Backends.Igpu;
 /// </summary>
 internal static class IlgpuPathTracerKernels
 {
-    private const int MaxDepth = 5;
+    private const int AbsoluteMaxDepth = 5;
     private const float Epsilon = 1e-4f;
     private const int MaxLights = 8;
     private const int BvhStackCapacity = 64;
@@ -23,6 +23,7 @@ internal static class IlgpuPathTracerKernels
         int width,
         int height,
         int sampleIndex,
+        int maxDepth,
         IlgpuCameraParams camera,
         ArrayView<Float3> accumulation,
         ArrayView<byte> displayRgba,
@@ -46,8 +47,16 @@ internal static class IlgpuPathTracerKernels
         var direction = Float3.Normalize(Float3.Add(Float3.Add(camera.Forward, Float3.Scale(camera.Right, u)), Float3.Scale(camera.Up, v)));
         var throughput = Float3.One;
         var radiance = Float3.Zero;
+        if (maxDepth < 1)
+        {
+            maxDepth = 1;
+        }
+        else if (maxDepth > AbsoluteMaxDepth)
+        {
+            maxDepth = AbsoluteMaxDepth;
+        }
 
-        for (var depth = 0; depth < MaxDepth; depth++)
+        for (var depth = 0; depth < maxDepth; depth++)
         {
             if (!IntersectScene(origin, direction, triangles, bvhNodes, bvhRootIndex, triangleOrder, float.MaxValue, out var hitMat, out var hitPoint, out var hitNormal, out var hitDist))
             {
