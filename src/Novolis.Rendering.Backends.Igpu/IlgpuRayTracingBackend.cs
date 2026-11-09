@@ -36,6 +36,7 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
     private int _bvhRootIndex = -1;
     private bool _useGpu;
     private bool _gpuDisplayDirty;
+    private string? _gpuFallbackReason;
     private Action<Index1D, int, int, int, IlgpuCameraParams, ArrayView<Float3>, ArrayView<byte>,
         ArrayView<GpuTriangle>, ArrayView<GpuMaterial>, ArrayView<GpuLight>, int, ArrayView<GpuBvhNode>, int,
         ArrayView<int>>? _traceKernel;
@@ -56,10 +57,15 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
         var device = IlgpuDeviceSelector.SelectDevice(_context);
         _accelerator = device.CreateAccelerator(_context);
         _useGpu = _accelerator.AcceleratorType != AcceleratorType.CPU;
-        if (_useGpu && !TryLoadTraceKernel())
+        if (!_useGpu)
+        {
+            _gpuFallbackReason = $"accelerator={_accelerator.AcceleratorType}";
+        }
+        else if (!TryLoadTraceKernel(out var loadError))
         {
             // Some CUDA/OpenCL ILGPU compilers ICE on this kernel; keep CPU path green.
             _useGpu = false;
+            _gpuFallbackReason = loadError;
         }
 
         if (!_useGpu)
@@ -69,7 +75,12 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
     }
 
     /// <inheritdoc />
-    public string BackendLabel => _useGpu ? $"ILGPU ({_accelerator!.Name})" : "ILGPU (CPU fallback)";
+    public string BackendLabel =>
+        _useGpu
+            ? $"ILGPU ({_accelerator!.Name})"
+            : string.IsNullOrEmpty(_gpuFallbackReason)
+                ? "ILGPU (CPU fallback)"
+                : $"ILGPU (CPU fallback: {_gpuFallbackReason})";
 
     /// <inheritdoc />
     public IRenderGpuSurface? GpuSurface => null;
@@ -262,25 +273,30 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
         return true;
     }
 
-    private bool TryLoadTraceKernel()
+    private bool TryLoadTraceKernel(out string? error)
     {
         try
         {
             _traceKernel = _accelerator!.LoadAutoGroupedStreamKernel<Index1D, int, int, int, IlgpuCameraParams,
                 ArrayView<Float3>, ArrayView<byte>, ArrayView<GpuTriangle>, ArrayView<GpuMaterial>, ArrayView<GpuLight>,
                 int, ArrayView<GpuBvhNode>, int, ArrayView<int>>(IlgpuPathTracerKernels.TracePixelKernel);
+            error = null;
             return true;
         }
-        catch (Exception ex) when (IsIlgpuCompilerFailure(ex))
+        catch (Exception ex)
         {
             _traceKernel = null;
+            error = TruncateReason($"{ex.GetType().Name}: {ex.Message}");
             return false;
         }
     }
 
-    private static bool IsIlgpuCompilerFailure(Exception ex) =>
-        ex.GetType().Name.Contains("InternalCompiler", StringComparison.Ordinal)
-        || ex.Message.Contains("internal compiler error", StringComparison.OrdinalIgnoreCase);
+    private static string TruncateReason(string reason)
+    {
+        const int max = 96;
+        var oneLine = reason.Replace('\r', ' ').Replace('\n', ' ');
+        return oneLine.Length <= max ? oneLine : oneLine[..(max - 1)] + "…";
+    }
 
     private void ResetAccumulationCore()
     {
