@@ -20,7 +20,7 @@ public sealed class VulkanRayTracingBackend : IRayTracingBackend, IDisposable
         _cpu = new CpuRayTracingBackend(deterministic);
 
     /// <inheritdoc />
-    public string BackendLabel => "Vulkan (CPU fallback)";
+    public string BackendLabel => "Vulkan (CPU shim — Silk.Compute owns real VK)";
 
     /// <inheritdoc />
     public IRenderGpuSurface? GpuSurface => _cpu.GpuSurface;

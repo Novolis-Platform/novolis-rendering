@@ -6,8 +6,8 @@ namespace Novolis.Rendering.PathTrace.Demos;
 /// <summary>Runs path-tracing samples on a background thread for interactive demos.</summary>
 public sealed class PathTraceBackgroundWorker : IDisposable
 {
-    /// <summary>Minimum time between orbit preview publishes (reduces noisy pose flicker).</summary>
-    private const int OrbitPreviewMinIntervalMs = 80;
+    /// <summary>Minimum gap between moving-camera preview jobs (keeps UI/GPU from thrashing).</summary>
+    private const int MovingPreviewMinIntervalMs = 40;
 
     private IRayTracingBackend _backend;
     private readonly PathTraceDisplayBuffer _display;
@@ -16,9 +16,9 @@ public sealed class PathTraceBackgroundWorker : IDisposable
     private CancellationTokenSource _cts = new();
     private bool _resetPending;
     private bool _disposed;
-    private CameraSnapshot? _pendingOrbitCamera;
-    private int _pendingOrbitSamples;
-    private long _nextOrbitAllowedTick;
+    private CameraSnapshot? _pendingMovingCamera;
+    private int _pendingMovingSamples;
+    private long _nextMovingAllowedTick;
 
     /// <summary>Creates a worker bound to a backend and display buffer.</summary>
     public PathTraceBackgroundWorker(IRayTracingBackend backend, PathTraceDisplayBuffer display)
@@ -35,7 +35,7 @@ public sealed class PathTraceBackgroundWorker : IDisposable
         {
             _backend = backend;
             _resetPending = true;
-            _pendingOrbitCamera = null;
+            _pendingMovingCamera = null;
         }
     }
 
@@ -65,16 +65,16 @@ public sealed class PathTraceBackgroundWorker : IDisposable
         lock (_gate)
         {
             _resetPending = true;
-            _pendingOrbitCamera = null;
+            _pendingMovingCamera = null;
             CancelLocked();
         }
     }
 
     /// <summary>
-    /// Cheap moving-camera preview: reset + a few samples. Coalesces to the latest pose while busy
-    /// and rate-limits publishes so the window does not flicker through noisy 2-spp frames.
+    /// Cheap moving-camera preview (orbit / drag / zoom): coalesces to the latest pose while busy
+    /// and rate-limits starts so drag does not cancel/restart every mouse delta.
     /// </summary>
-    public void TryEnqueueOrbitPreview(CameraSnapshot camera, int samplesPerPose = 4)
+    public void TryEnqueueMovingPreview(CameraSnapshot camera, int samplesPerPose = 4)
     {
         if (_disposed || samplesPerPose <= 0)
         {
@@ -83,21 +83,25 @@ public sealed class PathTraceBackgroundWorker : IDisposable
 
         lock (_gate)
         {
-            _pendingOrbitCamera = camera;
-            _pendingOrbitSamples = samplesPerPose;
+            _pendingMovingCamera = camera;
+            _pendingMovingSamples = samplesPerPose;
             if (_task is { IsCompleted: false })
             {
                 return;
             }
 
-            if (Environment.TickCount64 < _nextOrbitAllowedTick)
+            if (Environment.TickCount64 < _nextMovingAllowedTick)
             {
                 return;
             }
 
-            StartOrbitFromPendingLocked();
+            StartMovingFromPendingLocked();
         }
     }
+
+    /// <summary>Alias for <see cref="TryEnqueueMovingPreview"/> (orbit hosts).</summary>
+    public void TryEnqueueOrbitPreview(CameraSnapshot camera, int samplesPerPose = 4) =>
+        TryEnqueueMovingPreview(camera, samplesPerPose);
 
     /// <summary>Enqueues a progressive accumulation batch when idle.</summary>
     public bool TryEnqueueAccumulate(CameraSnapshot camera, ref int sample, int batchSize)
@@ -114,7 +118,7 @@ public sealed class PathTraceBackgroundWorker : IDisposable
                 return false;
             }
 
-            _pendingOrbitCamera = null;
+            _pendingMovingCamera = null;
             var start = _resetPending ? 0 : sample;
             var forceReset = _resetPending;
             if (_resetPending)
@@ -163,22 +167,22 @@ public sealed class PathTraceBackgroundWorker : IDisposable
         _cts.Dispose();
     }
 
-    private void StartOrbitFromPendingLocked()
+    private void StartMovingFromPendingLocked()
     {
-        if (_pendingOrbitCamera is not { } camera)
+        if (_pendingMovingCamera is not { } camera)
         {
             return;
         }
 
-        var samples = _pendingOrbitSamples;
-        _pendingOrbitCamera = null;
+        var samples = _pendingMovingSamples;
+        _pendingMovingCamera = null;
         _resetPending = true;
         var ct = _cts.Token;
         var backend = _backend;
-        _task = Task.Run(() => RunOrbitJob(backend, camera, samples, ct), ct);
+        _task = Task.Run(() => RunMovingJob(backend, camera, samples, ct), ct);
     }
 
-    private void RunOrbitJob(IRayTracingBackend backend, CameraSnapshot camera, int sampleCount, CancellationToken ct)
+    private void RunMovingJob(IRayTracingBackend backend, CameraSnapshot camera, int sampleCount, CancellationToken ct)
     {
         try
         {
@@ -192,8 +196,7 @@ public sealed class PathTraceBackgroundWorker : IDisposable
         {
             lock (_gate)
             {
-                // UI keeps calling TryEnqueueOrbitPreview; rate-limit the next start.
-                _nextOrbitAllowedTick = Environment.TickCount64 + OrbitPreviewMinIntervalMs;
+                _nextMovingAllowedTick = Environment.TickCount64 + MovingPreviewMinIntervalMs;
             }
         }
     }

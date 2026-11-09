@@ -27,7 +27,7 @@ await backend.ResizeAsync(32, 24);
 await backend.UploadSceneAsync(compiledScene);
 await backend.RenderAsync(camera, sampleIndex: 0);
 backend.Output.TryGetCpuPixels(out var pixels, out var w, out var h);
-// BackendLabel == "Vulkan (CPU fallback)"
+// BackendLabel == "Vulkan (CPU shim — Silk.Compute owns real VK)"
 ```
 
 Select with `NOVOLIS_RAY_BACKEND=vulkan`, `PathTraceBackendKind.Vulkan`, or `UseVulkanBackend()` in DI.

@@ -13,7 +13,7 @@ public sealed class VulkanRayTracingBackendTests
     public async Task BackendLabel_DocumentsCpuFallback_BecauseSilkOwnsVulkan()
     {
         using var backend = new VulkanRayTracingBackend();
-        await Assert.That(backend.BackendLabel).IsEqualTo("Vulkan (CPU fallback)");
+        await Assert.That(backend.BackendLabel).IsEqualTo("Vulkan (CPU shim — Silk.Compute owns real VK)");
         await Assert.That(backend.GpuSurface).IsNull();
     }
 

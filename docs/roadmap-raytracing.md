@@ -18,7 +18,7 @@ Governance: [library-boundaries.md](https://github.com/Novolis-Platform/novolis-
 | Phase 4 CPU tracer | Progressive samples; material branches; deterministic goldens |
 | Phase 5 DI | `AddRayTracing` / `UseCpu` / `UseIlgpu` / `UseVulkan` (shim) |
 | Phase 6a ILGPU | Real kernels + CPU fallback; parity test (deterministic) |
-| Phase 6b Vulkan in Rendering | **Intentional CPU shim** — label `Vulkan (CPU fallback)`; Shaderc in `Novolis.Silk.Compute` |
+| Phase 6b Vulkan in Rendering | **Intentional CPU shim** — label `Vulkan (CPU shim — Silk.Compute owns real VK)`; Shaderc in `Novolis.Silk.Compute` |
 | Phase 6c GL compute | Deferred (optional; not required for v1 exit) |
 | Phase 7 Quality | `NOV2005` bans Scene in Raylib; `FramebufferGoldenAssert`; pinned UnitCubeRoom SHA-256; Math BVH |
 

@@ -63,7 +63,7 @@ public sealed class PathTraceSession : IDisposable
         }
     }
 
-    /// <summary>Cycles cpu → ilgpu → vulkan.</summary>
+    /// <summary>Cycles cpu → ilgpu → vulkan (includes the intentional Vulkan CPU shim).</summary>
     /// <returns>The new backend kind.</returns>
     public PathTraceBackendKind CycleBackend()
     {
@@ -73,6 +73,20 @@ public sealed class PathTraceSession : IDisposable
             PathTraceBackendKind.Ilgpu => PathTraceBackendKind.Vulkan,
             _ => PathTraceBackendKind.Cpu,
         };
+        SwitchBackend(next);
+        return next;
+    }
+
+    /// <summary>
+    /// Interactive host cycle: <c>ilgpu ↔ cpu</c> only.
+    /// Vulkan stays available via explicit switch; it is a CPU shim (Silk owns real Vulkan).
+    /// </summary>
+    /// <returns>The new backend kind.</returns>
+    public PathTraceBackendKind CycleBackendInteractive()
+    {
+        var next = _kind == PathTraceBackendKind.Ilgpu
+            ? PathTraceBackendKind.Cpu
+            : PathTraceBackendKind.Ilgpu;
         SwitchBackend(next);
         return next;
     }
