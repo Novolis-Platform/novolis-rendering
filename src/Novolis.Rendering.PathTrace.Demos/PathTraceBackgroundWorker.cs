@@ -6,8 +6,11 @@ namespace Novolis.Rendering.PathTrace.Demos;
 /// <summary>Runs path-tracing samples on a background thread for interactive demos.</summary>
 public sealed class PathTraceBackgroundWorker : IDisposable
 {
-    /// <summary>Minimum gap between moving-camera preview jobs (keeps UI/GPU from thrashing).</summary>
-    private const int MovingPreviewMinIntervalMs = 40;
+    /// <summary>
+    /// Idle gap after a moving preview when nothing is pending. Pending poses chain immediately
+    /// so orbit/drag stay continuous instead of waiting out this delay on a stale camera.
+    /// </summary>
+    private const int MovingPreviewMinIntervalMs = 8;
 
     private IRayTracingBackend _backend;
     private readonly PathTraceDisplayBuffer _display;
@@ -198,7 +201,19 @@ public sealed class PathTraceBackgroundWorker : IDisposable
         {
             lock (_gate)
             {
-                _nextMovingAllowedTick = Environment.TickCount64 + MovingPreviewMinIntervalMs;
+                if (_disposed)
+                {
+                    // leave gate
+                }
+                else if (_pendingMovingCamera is not null)
+                {
+                    // Latest orbit/drag pose wins: chain without waiting for the next UI tick or idle gap.
+                    StartMovingFromPendingLocked();
+                }
+                else
+                {
+                    _nextMovingAllowedTick = Environment.TickCount64 + MovingPreviewMinIntervalMs;
+                }
             }
         }
     }
