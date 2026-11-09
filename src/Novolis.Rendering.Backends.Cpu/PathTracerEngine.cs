@@ -60,7 +60,8 @@ internal static class PathTracerEngine
                     var dir = Vector3.Normalize(camera.Forward + u * camera.Right + v * camera.Up);
                     var radiance = TracePath(camera.Position, dir, scene, ref rng);
                     var idx = y * width + x;
-                    var blended = accumulation[idx] + radiance;
+                    // sampleIndex 0 replaces so interactive camera moves skip a full accumulation clear.
+                    var blended = sampleIndex == 0 ? radiance : accumulation[idx] + radiance;
                     accumulation[idx] = blended;
                     display[idx] = ToRgba(blended * invCount);
                 }

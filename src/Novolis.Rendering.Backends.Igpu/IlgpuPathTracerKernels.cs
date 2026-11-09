@@ -156,7 +156,10 @@ internal static class IlgpuPathTracerKernels
         }
 
         var invCount = 1f / (sampleIndex + 1);
-        var blended = Float3.Add(accumulation[index], radiance);
+        // sampleIndex 0 replaces so interactive camera moves skip a full MemSet+Synchronize reset.
+        var blended = sampleIndex == 0
+            ? radiance
+            : Float3.Add(accumulation[index], radiance);
         accumulation[index] = blended;
         WriteRgba(displayRgba, index, Float3.Scale(blended, invCount));
     }

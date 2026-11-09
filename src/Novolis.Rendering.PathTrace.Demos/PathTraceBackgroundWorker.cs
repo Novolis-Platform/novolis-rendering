@@ -10,7 +10,7 @@ public sealed class PathTraceBackgroundWorker : IDisposable
     /// Idle gap after a moving preview when nothing is pending. Pending poses chain immediately
     /// so orbit/drag stay continuous instead of waiting out this delay on a stale camera.
     /// </summary>
-    private const int MovingPreviewMinIntervalMs = 8;
+    private const int MovingPreviewMinIntervalMs = 0;
 
     private IRayTracingBackend _backend;
     private readonly PathTraceDisplayBuffer _display;
@@ -181,7 +181,7 @@ public sealed class PathTraceBackgroundWorker : IDisposable
 
         var samples = _pendingMovingSamples;
         _pendingMovingCamera = null;
-        _resetPending = true;
+        // Do not set _resetPending — sampleIndex 0 replaces accumulation (avoids GPU MemSet+sync).
         var ct = _cts.Token;
         var backend = _backend;
         _task = Task.Run(() => RunMovingJob(backend, camera, samples, ct), ct);
@@ -191,7 +191,8 @@ public sealed class PathTraceBackgroundWorker : IDisposable
     {
         try
         {
-            RunJob(backend, camera, startSampleIndex: 0, sampleCount, forceReset: true, ct);
+            // sampleIndex 0 replaces accumulation in GPU/CPU kernels — skip MemSet+Synchronize reset.
+            RunJob(backend, camera, startSampleIndex: 0, sampleCount, forceReset: false, ct);
         }
         catch (OperationCanceledException)
         {
