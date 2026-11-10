@@ -68,32 +68,34 @@ public sealed class PathTracePerfMeter
             _blits++;
         }
 
-        if (_elapsedSeconds < _intervalSeconds)
+        if (_elapsedSeconds >= _intervalSeconds)
         {
-            return;
+            Emit(fps, samples, backendLabel, traceWidth, traceHeight, orbiting);
         }
+    }
 
+    private void Emit(
+        float fps,
+        int samples,
+        string backendLabel,
+        int traceWidth,
+        int traceHeight,
+        bool orbiting)
+    {
         var window = _elapsedSeconds;
         var frames = System.Math.Max(1, _frames);
-        var measuredFps = _frames / window;
-        var busyPct = 100.0 * _busyFrames / frames;
-        var blitHz = _blits / window;
-        var enqueueAcceptPct = _enqueueAttempts == 0
-            ? 0.0
-            : 100.0 * _enqueueAccepted / _enqueueAttempts;
-
         _logger.LogInformation(
             "path-trace perf window={Window:F1}s frames={Frames} fps={Fps:F1} (smooth={SmoothFps:F1}) samples={Samples} blitHz={BlitHz:F1} busy={BusyPct:F0}% enqueue={EnqueueOk}/{EnqueueAttempts} ({EnqueuePct:F0}%) backend={Backend} trace={Width}x{Height} orbit={Orbit}",
             window,
             _frames,
-            measuredFps,
+            _frames / window,
             fps,
             samples,
-            blitHz,
-            busyPct,
+            _blits / window,
+            100.0 * _busyFrames / frames,
             _enqueueAccepted,
             _enqueueAttempts,
-            enqueueAcceptPct,
+            _enqueueAttempts == 0 ? 0.0 : 100.0 * _enqueueAccepted / _enqueueAttempts,
             backendLabel,
             traceWidth,
             traceHeight,

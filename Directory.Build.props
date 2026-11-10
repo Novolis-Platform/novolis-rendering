@@ -5,7 +5,7 @@
   </PropertyGroup>
   <Import Project="$(MSBuildThisFileDirectory)build\version.props"
           Condition="Exists('$(MSBuildThisFileDirectory)build\version.props')" />
-<PropertyGroup Label="SDK and packages">
+  <PropertyGroup Label="SDK and packages">
     <TargetFramework>net10.0</TargetFramework>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <CentralPackageFloatingVersionsEnabled>true</CentralPackageFloatingVersionsEnabled>
@@ -15,6 +15,8 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <AnalysisLevel>latest</AnalysisLevel>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <!-- Path-trace / BVH / compile kernels are a poor fit for NOV2301 advisory heuristics. -->
+    <NovolisReadabilityComplexity>false</NovolisReadabilityComplexity>
   </PropertyGroup>
 
   <PropertyGroup Label="Local NuGet feed">

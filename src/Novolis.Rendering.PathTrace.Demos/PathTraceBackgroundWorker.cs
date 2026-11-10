@@ -1,4 +1,3 @@
-using Novolis.Rendering.Backends.Cpu;
 using Novolis.Rendering.Backends.Igpu;
 using Novolis.Rendering.Runtime;
 
@@ -333,14 +332,9 @@ public sealed class PathTraceBackgroundWorker : IDisposable
 
     private static void ApplyTraceDepth(IRayTracingBackend backend, int maxDepth)
     {
-        switch (backend)
+        if (backend is ITraceDepthControl depth)
         {
-            case IlgpuRayTracingBackend igpu:
-                igpu.MaxTraceDepth = maxDepth;
-                break;
-            case CpuRayTracingBackend cpu:
-                cpu.MaxTraceDepth = maxDepth;
-                break;
+            depth.MaxTraceDepth = maxDepth;
         }
     }
 

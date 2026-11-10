@@ -7,7 +7,7 @@ using Novolis.Rendering.Runtime;
 namespace Novolis.Rendering.Backends.Cpu;
 
 /// <summary>CPU path tracing backend with progressive accumulation.</summary>
-public sealed class CpuRayTracingBackend : IRayTracingBackend
+public sealed class CpuRayTracingBackend : IRayTracingBackend, ITraceDepthControl
 {
     private readonly ImageBufferRenderOutput _output = new();
     private readonly bool _deterministic;

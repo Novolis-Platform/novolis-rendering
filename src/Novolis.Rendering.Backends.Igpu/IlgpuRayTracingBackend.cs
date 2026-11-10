@@ -11,7 +11,7 @@ using Novolis.Rendering.Runtime;
 namespace Novolis.Rendering.Backends.Igpu;
 
 /// <summary>ILGPU compute path tracing backend with CPU fallback for deterministic tests.</summary>
-public sealed class IlgpuRayTracingBackend : IRayTracingBackend, IDisposable
+public sealed class IlgpuRayTracingBackend : IRayTracingBackend, ITraceDepthControl, IDisposable
 {
     private readonly bool _deterministic;
     private readonly CpuRayTracingBackend? _cpuFallback;
