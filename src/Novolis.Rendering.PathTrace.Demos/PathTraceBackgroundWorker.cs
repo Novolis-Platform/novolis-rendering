@@ -314,7 +314,7 @@ public sealed class PathTraceBackgroundWorker : IDisposable
         PublishFrame(backend);
     }
 
-    private const int MovingPreviewMaxDepth = 2;
+    private const int MovingPreviewMaxDepth = 3;
     private const int FullTraceMaxDepth = 5;
 
     private static void ApplyTraceDepth(IRayTracingBackend backend, int maxDepth)
