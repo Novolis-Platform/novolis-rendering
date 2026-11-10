@@ -20,7 +20,8 @@ public static class SceneCompiler
     /// Scales emissive mesh area×strength into a point-light intensity so DirectLighting
     /// can next-event-estimate glowing props (without this, only lucky bounces light the room → mud).
     /// </summary>
-    private const float EmissivePointLightScale = 1.1f;
+    // Soft: NEE must not nuke the frame once shadow rays correctly accept emissive hits.
+    private const float EmissivePointLightScale = 0.12f;
 
     /// <summary>Compiles meshes, materials, lights, and a BVH into a <see cref="CompiledScene"/>.</summary>
     /// <param name="scene">Authoring scene graph.</param>
@@ -149,6 +150,13 @@ public static class SceneCompiler
         }
 
         var centroid = weightedCentroid / area;
+        // Nudge toward the diorama interior so the proxy isn't buried in coplanar faces.
+        var toInterior = new Vector3(0f, 0.42f, 0f) - centroid;
+        if (toInterior.LengthSquared() > 1e-8f)
+        {
+            centroid += Vector3.Normalize(toInterior) * 0.05f;
+        }
+
         var intensity = MathF.Max(emissive.EmissionStrength, 0f) * area * EmissivePointLightScale;
         if (intensity <= 1e-5f)
         {

@@ -138,18 +138,18 @@ public static class MaterialPresets
 
         /// <summary>Ceiling softbox panel.</summary>
         public static EmissiveMaterial Softbox() =>
-            Emissive(Colors.Softbox, strength: 12f);
+            Emissive(Colors.Softbox, strength: 8f);
 
         /// <summary>Cyan lightsaber blade.</summary>
         public static EmissiveMaterial LightsaberCyan() =>
-            Neon(Colors.CyanNeon, strength: 24f);
+            Neon(Colors.CyanNeon, strength: 14f);
 
         /// <summary>Magenta neon stick.</summary>
         public static EmissiveMaterial NeonMagenta() =>
-            Neon(Colors.MagentaNeon, strength: 18f);
+            Neon(Colors.MagentaNeon, strength: 10f);
 
         /// <summary>Warm accent bulb.</summary>
         public static EmissiveMaterial WarmAccent() =>
-            Emissive(new Vector3(1f, 0.55f, 0.2f), strength: 7f);
+            Emissive(new Vector3(1f, 0.55f, 0.2f), strength: 4f);
     }
 }

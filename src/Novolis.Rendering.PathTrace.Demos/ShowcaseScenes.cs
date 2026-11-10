@@ -58,7 +58,7 @@ public static class ShowcaseScenes
         AddStudioProps(builder);
         builder.AddBox(
             new Vector3(0f, height - 0.02f, -0.05f),
-            new Vector3(0.32f, 0.015f, 0.24f),
+            new Vector3(0.42f, 0.015f, 0.32f),
             MaterialPresets.Showcase.Softbox());
 
         return SceneCompiler.Compile(builder.Build());

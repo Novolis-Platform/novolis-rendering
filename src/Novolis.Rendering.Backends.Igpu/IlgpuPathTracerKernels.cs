@@ -11,14 +11,14 @@ namespace Novolis.Rendering.Backends.Igpu;
 /// </summary>
 internal static class IlgpuPathTracerKernels
 {
-    private const int AbsoluteMaxDepth = 5;
+    private const int AbsoluteMaxDepth = 8;
     private const float Epsilon = 1e-4f;
     private const int MaxLights = 16;
     private const int BvhStackCapacity = 64;
-    private const float DisplayExposure = 1.35f;
+    private const float DisplayExposure = 1.1f;
     private const float Pi = 3.14159265f;
-    private const float EnvStrength = 0.12f;
-    private const float FireflyClamp = 8f;
+    private const float EnvStrength = 0.08f;
+    private const float FireflyClamp = 4f;
 
     public static void TracePixelKernel(
         Index1D index,
@@ -121,7 +121,7 @@ internal static class IlgpuPathTracerKernels
                     radiance,
                     Float3.Mul(
                         throughput,
-                        DirectLighting(direction, hitPoint, hitNormal, mat, lights, lightCount, triangles, bvhNodes, bvhRootIndex, triangleOrder)));
+                        DirectLighting(direction, hitPoint, hitNormal, mat, lights, lightCount, triangles, materials, bvhNodes, bvhRootIndex, triangleOrder)));
 
                 // StandardMaterial packs emission in B.Y / C — Skin uses those lanes for SSS params.
                 if (mat.Model == MaterialModel.Standard && mat.B.Y > 1e-5f)
@@ -161,8 +161,8 @@ internal static class IlgpuPathTracerKernels
                 break;
             }
 
-            // Russian roulette after a couple of bounces.
-            if (depth >= 2)
+            // Russian roulette after enough bounces that NEE + first GI have landed.
+            if (depth >= 4)
             {
                 var p = TracerMath.Min(Float3.MaxComponent(throughput), 0.95f);
                 if (NextFloat(ref rng) >= p)
@@ -221,6 +221,7 @@ internal static class IlgpuPathTracerKernels
         ArrayView<GpuLight> lights,
         int lightCount,
         ArrayView<GpuTriangle> triangles,
+        ArrayView<GpuMaterial> materials,
         ArrayView<GpuBvhNode> bvhNodes,
         int bvhRootIndex,
         ArrayView<int> triangleOrder)
@@ -248,13 +249,13 @@ internal static class IlgpuPathTracerKernels
                 ? 1e6f
                 : Float3.Length(Float3.Sub(lightPos, hitPoint));
 
-            if (!ShadowClear(hitPoint, hitNormal, lightDir, maxDist, triangles, bvhNodes, bvhRootIndex, triangleOrder))
+            if (!ShadowClear(hitPoint, hitNormal, lightDir, maxDist, triangles, materials, bvhNodes, bvhRootIndex, triangleOrder))
             {
                 continue;
             }
 
             var ndotl = TracerMath.Max(0f, Float3.Dot(n, lightDir));
-            var diffuse = Float3.Scale(baseColor, 1f - metallic);
+            var diffuse = Float3.Scale(baseColor, (1f - metallic) * ndotl / Pi);
             var f0 = Float3.Lerp(Float3.Create(0.04f, 0.04f, 0.04f), baseColor, metallic);
             var spec = GgxSpec(n, v, lightDir, roughness, f0);
             var lightColor = Float3.Create(light.Color.X, light.Color.Y, light.Color.Z);
@@ -263,7 +264,7 @@ internal static class IlgpuPathTracerKernels
                 : light.Intensity / (maxDist * maxDist + 1e-3f);
             radiance = Float3.Add(
                 radiance,
-                Float3.Mul(Float3.Add(Float3.Scale(diffuse, ndotl), spec), Float3.Scale(lightColor, atten)));
+                Float3.Mul(Float3.Add(diffuse, spec), Float3.Scale(lightColor, atten)));
         }
 
         return radiance;
@@ -405,12 +406,20 @@ internal static class IlgpuPathTracerKernels
         Float3 direction,
         float maxDist,
         ArrayView<GpuTriangle> triangles,
+        ArrayView<GpuMaterial> materials,
         ArrayView<GpuBvhNode> bvhNodes,
         int bvhRootIndex,
         ArrayView<int> triangleOrder)
     {
+        // Point lights extracted from emissive meshes sit inside those meshes. Hitting the
+        // emissive surface is reaching the light — not occlusion (otherwise NEE never fires → mud).
         var shadowOrigin = Float3.Add(origin, Float3.Scale(normal, Epsilon));
-        return !IntersectScene(shadowOrigin, direction, triangles, bvhNodes, bvhRootIndex, triangleOrder, maxDist, out _, out _, out _, out _);
+        if (!IntersectScene(shadowOrigin, direction, triangles, bvhNodes, bvhRootIndex, triangleOrder, maxDist, out var hitMat, out _, out _, out _))
+        {
+            return true;
+        }
+
+        return materials[hitMat].Model == MaterialModel.Emissive;
     }
 
     private static bool TriangleHit(

@@ -327,8 +327,8 @@ public sealed class PathTraceBackgroundWorker : IDisposable
     }
 
     // Full bounce budget while moving — the 4070 is readback-bound, not kernel-bound at interactive res.
-    private const int MovingPreviewMaxDepth = 5;
-    private const int FullTraceMaxDepth = 5;
+    private const int MovingPreviewMaxDepth = 6;
+    private const int FullTraceMaxDepth = 8;
 
     private static void ApplyTraceDepth(IRayTracingBackend backend, int maxDepth)
     {

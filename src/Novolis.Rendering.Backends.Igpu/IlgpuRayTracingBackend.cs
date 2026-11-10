@@ -37,18 +37,18 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, ITraceDepthCont
     private bool _useGpu;
     private bool _gpuDisplayDirty;
     private string? _gpuFallbackReason;
-    private int _maxTraceDepth = 5;
+    private int _maxTraceDepth = 8;
     private Action<Index1D, int, int, int, int, IlgpuCameraParams, ArrayView<Float3>, ArrayView<byte>,
         ArrayView<GpuTriangle>, ArrayView<GpuMaterial>, ArrayView<GpuLight>, int, ArrayView<GpuBvhNode>, int,
         ArrayView<int>>? _traceKernel;
 
     /// <summary>
-    /// Bounce budget for subsequent kernels (1–5). Interactive hosts drop this while the camera moves.
+    /// Bounce budget for subsequent kernels (1–8). Interactive hosts may lower this while the camera moves.
     /// </summary>
     public int MaxTraceDepth
     {
         get => _maxTraceDepth;
-        set => _maxTraceDepth = value < 1 ? 1 : value > 5 ? 5 : value;
+        set => _maxTraceDepth = value < 1 ? 1 : value > 8 ? 8 : value;
     }
 
     /// <summary>Creates an ILGPU backend; uses CPU fallback when deterministic or when no GPU is available.</summary>

@@ -40,6 +40,7 @@ On an RTX 4070 @ interactive res, expect `exec+readback` ≈ 99% of present cost
 If the image stays grainy at hundreds of samples, the bottleneck is **estimator variance**, not GPU throughput:
 
 1. **Emissive geometry without NEE** — `DirectLighting` only samples `GpuLight`. Ceiling panels / neon sticks that are *only* emissive meshes light the room via lucky bounces → salt-and-pepper forever. Fix: `SceneCompiler` extracts emissive meshes to point lights (and point falloff `1/r²`).
-2. **Bright open-face environment** — HDR sky through the diorama mouth is an unsampled light. Fix: dim `SampleSky` (`EnvStrength`).
-3. **Directional sun + interior emissives** — competing estimators. Studio scene is emissive-lit only.
-4. Present cost being low while mud remains confirms you are **sample-efficiency** bound, not SM-bound.
+2. **Shadow rays occluding the light itself** — proxies sit *inside* emissive boxes, so the first hit was the light mesh → every NEE sample discarded. Fix: treat emissive hits as clear in shadow tests.
+3. **Bright open-face environment** — HDR sky through the diorama mouth is an unsampled light. Fix: dim `SampleSky` (`EnvStrength`).
+4. **Directional sun + interior emissives** — competing estimators. Studio scene is emissive-lit only.
+5. Present cost being low while mud remains confirms you are **sample-efficiency** bound, not SM-bound.

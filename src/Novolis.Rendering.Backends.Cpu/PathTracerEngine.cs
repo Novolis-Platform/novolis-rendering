@@ -10,12 +10,12 @@ namespace Novolis.Rendering.Backends.Cpu;
 /// </summary>
 internal static class PathTracerEngine
 {
-    private const int AbsoluteMaxDepth = 5;
+    private const int AbsoluteMaxDepth = 8;
     private const float Epsilon = 1e-4f;
     private const int TileSize = 32;
-    private const float DisplayExposure = 1.35f;
-    private const float EnvStrength = 0.12f;
-    private const float FireflyClamp = 8f;
+    private const float DisplayExposure = 1.1f;
+    private const float EnvStrength = 0.08f;
+    private const float FireflyClamp = 4f;
 
     public static void RenderSample(
         Vector3[] accumulation,
@@ -123,7 +123,7 @@ internal static class PathTracerEngine
                 }
             }
 
-            if (depth >= 2)
+            if (depth >= 4)
             {
                 var p = MathF.Min(MathF.Max(throughput.X, MathF.Max(throughput.Y, throughput.Z)), 0.95f);
                 if (rng.NextDouble() >= p)
@@ -284,13 +284,13 @@ internal static class PathTracerEngine
             }
 
             var ndotl = MathF.Max(0f, Vector3.Dot(n, lightDir));
-            var diffuse = baseColor * (1f - metallic);
+            var diffuse = baseColor * ((1f - metallic) * ndotl / MathF.PI);
             var f0 = Vector3.Lerp(new Vector3(0.04f), baseColor, metallic);
             var spec = GgxSpec(n, v, lightDir, roughness, f0);
             var atten = light.Kind == GpuLightKind.Directional
                 ? light.Intensity
                 : light.Intensity / (maxDist * maxDist + 1e-3f);
-            radiance += (diffuse * ndotl + spec) * light.Color * atten;
+            radiance += (diffuse + spec) * light.Color * atten;
         }
 
         return radiance;
@@ -328,8 +328,14 @@ internal static class PathTracerEngine
 
     private static bool ShadowRayClear(Vector3 origin, Vector3 dir, CompiledScene scene, float maxDist)
     {
+        // Emissive hit = reached a mesh light (point-light NEE proxies live inside emissive boxes).
         var ray = new Ray(origin + dir * Epsilon, dir);
-        return !IntersectScene(in ray, scene, out _, maxDist);
+        if (!IntersectScene(in ray, scene, out var hit, maxDist))
+        {
+            return true;
+        }
+
+        return scene.Materials[hit.MaterialIndex].Model == MaterialModel.Emissive;
     }
 
     private static bool IntersectScene(in Ray ray, CompiledScene scene, out Hit hit, float maxDistance = float.MaxValue)
