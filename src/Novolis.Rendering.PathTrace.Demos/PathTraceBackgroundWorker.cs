@@ -104,7 +104,8 @@ public sealed class PathTraceBackgroundWorker : IDisposable
     }
 
     /// <summary>
-    /// Cheap moving-camera preview (orbit / drag / zoom): coalesces to the latest pose while busy.
+    /// Cheap moving-camera preview (orbit / drag / zoom): coalesces to the latest pose.
+    /// Cancels an in-flight accumulate batch — motion must not wait on quality work.
     /// </summary>
     /// <returns><see langword="true"/> when a new background job was armed.</returns>
     public bool TryEnqueueMovingPreview(CameraSnapshot camera, int samplesPerPose = 4)
@@ -114,6 +115,7 @@ public sealed class PathTraceBackgroundWorker : IDisposable
             return false;
         }
 
+        var cancelInFlight = false;
         lock (_gate)
         {
             _pendingMovingCamera = camera;
@@ -121,14 +123,18 @@ public sealed class PathTraceBackgroundWorker : IDisposable
             _pendingAccumulateCamera = null;
             if (_jobActive)
             {
-                return false;
+                // Do not wait for a multi-spp accumulate to finish on a stale pose.
+                cancelInFlight = true;
+                CancelLocked();
             }
-
-            _jobActive = true;
+            else
+            {
+                _jobActive = true;
+            }
         }
 
         _wake.Set();
-        return true;
+        return !cancelInFlight;
     }
 
     /// <summary>Alias for <see cref="TryEnqueueMovingPreview"/> (orbit hosts).</summary>
