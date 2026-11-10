@@ -31,7 +31,7 @@ if (backend.BackendLabel.Contains("fallback", StringComparison.OrdinalIgnoreCase
 
 var scene = ShowcaseScenes.BuildStudioShowcase();
 var camera = CameraSnapshot.LookAt(
-    new Vector3(1.2f, 0.85f, 2.4f),
+    ShowcaseScenes.StudioDefaultEye,
     ShowcaseScenes.OrbitTarget,
     Vector3.UnitY,
     52f,

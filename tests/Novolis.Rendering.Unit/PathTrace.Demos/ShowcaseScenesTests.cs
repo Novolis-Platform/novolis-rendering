@@ -19,4 +19,12 @@ public sealed class ShowcaseScenesTests
         var studio = ShowcaseScenes.BuildStudioShowcase();
         await Assert.That(studio.Lights.Length).IsGreaterThan(hello.Lights.Length);
     }
+
+    [Test]
+    public async Task BuildStudioShowcase_is_a_dense_diorama()
+    {
+        var hello = ShowcaseScenes.BuildHelloShowcase();
+        var studio = ShowcaseScenes.BuildStudioShowcase();
+        await Assert.That(studio.Triangles.Length).IsGreaterThan(hello.Triangles.Length * 10);
+    }
 }
