@@ -37,7 +37,7 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, ITraceDepthCont
     private bool _useGpu;
     private bool _gpuDisplayDirty;
     private string? _gpuFallbackReason;
-    private int _maxTraceDepth = 4;
+    private int _maxTraceDepth = 6;
     private Action<Index1D, IlgpuTraceLaunch, IlgpuCameraParams, ArrayView<Float3>, ArrayView<byte>,
         ArrayView<GpuTriangle>, ArrayView<GpuMaterial>, ArrayView<GpuLight>, int, ArrayView<GpuBvhNode>, int,
         ArrayView<int>>? _traceKernel;

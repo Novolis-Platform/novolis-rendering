@@ -20,8 +20,10 @@ public static class SceneCompiler
     /// Scales emissive mesh area×strength into a point-light intensity so DirectLighting
     /// can next-event-estimate glowing props (without this, only lucky bounces light the room → mud).
     /// </summary>
-    // Soft: NEE must not nuke the frame once shadow rays correctly accept emissive hits.
-    private const float EmissivePointLightScale = 0.12f;
+    // Softbox area→point: high enough for clean NEE, low enough to avoid firefly blowouts.
+    private const float EmissivePointLightScale = 0.2f;
+    /// <summary>Drop tiny accent proxies; keep softbox (+ neon if close in power).</summary>
+    private const float NeeIntensityFloorFraction = 0.08f;
 
     /// <summary>Compiles meshes, materials, lights, and a BVH into a <see cref="CompiledScene"/>.</summary>
     /// <param name="scene">Authoring scene graph.</param>
@@ -128,6 +130,8 @@ public static class SceneCompiler
 
         var area = 0f;
         var weightedCentroid = Vector3.Zero;
+        var boundsMin = new Vector3(float.MaxValue);
+        var boundsMax = new Vector3(float.MinValue);
         for (var i = triStart; i < triEnd; i++)
         {
             var t = triangles[i];
@@ -142,6 +146,8 @@ public static class SceneCompiler
 
             area += triArea;
             weightedCentroid += (a + b + c) * (triArea / 3f);
+            boundsMin = Vector3.Min(boundsMin, Vector3.Min(a, Vector3.Min(b, c)));
+            boundsMax = Vector3.Max(boundsMax, Vector3.Max(a, Vector3.Max(b, c)));
         }
 
         if (area <= 1e-6f)
@@ -150,32 +156,111 @@ public static class SceneCompiler
         }
 
         var centroid = weightedCentroid / area;
-        // Nudge toward the diorama interior so the proxy isn't buried in coplanar faces.
-        var toInterior = new Vector3(0f, 0.42f, 0f) - centroid;
-        if (toInterior.LengthSquared() > 1e-8f)
-        {
-            centroid += Vector3.Normalize(toInterior) * 0.05f;
-        }
-
-        var intensity = MathF.Max(emissive.EmissionStrength, 0f) * area * EmissivePointLightScale;
-        if (intensity <= 1e-5f)
+        var strength = MathF.Max(emissive.EmissionStrength, 0f) * EmissivePointLightScale;
+        if (strength <= 1e-5f)
         {
             return;
         }
 
-        lights.Add(new GpuLight(GpuLightKind.Point, centroid, emissive.EmissionColor, intensity));
+        var extent = boundsMax - boundsMin;
+        // Softbox / panel: thin along one axis → sample as a rectangle (kills point-light mud).
+        var thinAxis = 0;
+        if (extent.Y <= extent.X && extent.Y <= extent.Z)
+        {
+            thinAxis = 1;
+        }
+        else if (extent.Z <= extent.X && extent.Z <= extent.Y)
+        {
+            thinAxis = 2;
+        }
+
+        var thin = thinAxis == 0 ? extent.X : thinAxis == 1 ? extent.Y : extent.Z;
+        var maxExtent = MathF.Max(extent.X, MathF.Max(extent.Y, extent.Z));
+        if (maxExtent > 1e-4f && thin / maxExtent < 0.35f)
+        {
+            Vector3 u;
+            Vector3 v;
+            if (thinAxis == 1)
+            {
+                u = new Vector3(extent.X * 0.5f, 0f, 0f);
+                v = new Vector3(0f, 0f, extent.Z * 0.5f);
+            }
+            else if (thinAxis == 0)
+            {
+                u = new Vector3(0f, extent.Y * 0.5f, 0f);
+                v = new Vector3(0f, 0f, extent.Z * 0.5f);
+            }
+            else
+            {
+                u = new Vector3(extent.X * 0.5f, 0f, 0f);
+                v = new Vector3(0f, extent.Y * 0.5f, 0f);
+            }
+
+            var toInterior = new Vector3(0f, 0.42f, 0f) - centroid;
+            if (toInterior.LengthSquared() > 1e-8f)
+            {
+                centroid += Vector3.Normalize(toInterior) * 0.02f;
+            }
+
+            lights.Add(new GpuLight(GpuLightKind.Rect, centroid, emissive.EmissionColor, strength, u, v));
+            return;
+        }
+
+        // Neon sticks / small props stay point proxies.
+        var toCenter = new Vector3(0f, 0.42f, 0f) - centroid;
+        if (toCenter.LengthSquared() > 1e-8f)
+        {
+            centroid += Vector3.Normalize(toCenter) * 0.05f;
+        }
+
+        lights.Add(new GpuLight(GpuLightKind.Point, centroid, emissive.EmissionColor, strength * area));
     }
 
     private static void TrimLights(List<GpuLight> lights)
     {
+        if (lights.Count == 0)
+        {
+            return;
+        }
+
+        var maxPower = 0f;
+        for (var i = 0; i < lights.Count; i++)
+        {
+            maxPower = MathF.Max(maxPower, ApproximateLightPower(lights[i]));
+        }
+
+        var floor = maxPower * NeeIntensityFloorFraction;
+        for (var i = lights.Count - 1; i >= 0; i--)
+        {
+            if (lights[i].Kind == GpuLightKind.Directional)
+            {
+                continue;
+            }
+
+            if (ApproximateLightPower(lights[i]) < floor)
+            {
+                lights.RemoveAt(i);
+            }
+        }
+
         if (lights.Count <= MaxCompiledLights)
         {
             return;
         }
 
-        // Prefer keeping authored + brightest emissive proxies.
-        lights.Sort(static (a, b) => b.Intensity.CompareTo(a.Intensity));
+        lights.Sort(static (a, b) => ApproximateLightPower(b).CompareTo(ApproximateLightPower(a)));
         lights.RemoveRange(MaxCompiledLights, lights.Count - MaxCompiledLights);
+    }
+
+    private static float ApproximateLightPower(GpuLight light)
+    {
+        if (light.Kind == GpuLightKind.Rect)
+        {
+            var area = 4f * light.U.Length() * light.V.Length();
+            return light.Intensity * MathF.Max(area, 1e-6f);
+        }
+
+        return light.Intensity;
     }
 
     private static GpuLight ToGpuLight(LightDefinition light) =>

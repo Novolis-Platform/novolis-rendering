@@ -13,9 +13,9 @@ internal static class PathTracerEngine
     private const int AbsoluteMaxDepth = 6;
     private const float Epsilon = 1e-4f;
     private const int TileSize = 32;
-    private const float DisplayExposure = 1.1f;
-    private const float EnvStrength = 0.08f;
-    private const float FireflyClamp = 4f;
+    private const float DisplayExposure = 1.25f;
+    private const float EnvStrength = 0.04f;
+    private const float FireflyClamp = 6f;
 
     public static void RenderSample(
         Vector3[] accumulation,
@@ -70,7 +70,7 @@ internal static class PathTracerEngine
                     // Row 0 is the top of the framebuffer (matches Silk/OpenGL blit UVs).
                     var v = (1f - 2f * (y + jitterY) / height) * tanHalfFov;
                     var dir = Vector3.Normalize(camera.Forward + u * camera.Right + v * camera.Up);
-                    var radiance = TracePath(camera.Position, dir, scene, ref rng, maxDepth);
+                    var radiance = ClampRadiance(TracePath(camera.Position, dir, scene, ref rng, maxDepth));
                     var idx = y * width + x;
                     // sampleIndex 0 replaces so interactive camera moves skip a full accumulation clear.
                     var blended = sampleIndex == 0 ? radiance : accumulation[idx] + radiance;
@@ -98,7 +98,11 @@ internal static class PathTracerEngine
             var mat = scene.Materials[hit.MaterialIndex];
             if (mat.Model == MaterialModel.Emissive)
             {
-                radiance += throughput * new Vector3(mat.A.X, mat.A.Y, mat.A.Z) * mat.A.W;
+                if (depth == 0)
+                {
+                    radiance += throughput * new Vector3(mat.A.X, mat.A.Y, mat.A.Z) * mat.A.W;
+                }
+
                 break;
             }
 
@@ -111,7 +115,7 @@ internal static class PathTracerEngine
             }
             else
             {
-                if (depth < 2)
+                if (depth < 3)
                 {
                     radiance += throughput * DirectLighting(in hit, scene, mat, ref rng);
                 }
@@ -275,7 +279,7 @@ internal static class PathTracerEngine
         var weightSum = 0f;
         for (var i = 0; i < scene.Lights.Length; i++)
         {
-            weightSum += MathF.Max(scene.Lights[i].Intensity, 1e-4f);
+            weightSum += MathF.Max(LightPower(scene.Lights[i]), 1e-4f);
         }
 
         var pick = (float)rng.NextDouble() * weightSum;
@@ -283,7 +287,7 @@ internal static class PathTracerEngine
         var cumulative = 0f;
         for (var i = 0; i < scene.Lights.Length; i++)
         {
-            cumulative += MathF.Max(scene.Lights[i].Intensity, 1e-4f);
+            cumulative += MathF.Max(LightPower(scene.Lights[i]), 1e-4f);
             if (pick <= cumulative)
             {
                 lightIndex = i;
@@ -298,13 +302,49 @@ internal static class PathTracerEngine
             : System.Math.Clamp(mat.B.X, 0f, 1f);
         var n = hit.Normal;
 
-        var lightDir = light.Kind == GpuLightKind.Directional
-            ? Vector3.Normalize(-light.DirectionOrPosition)
-            : Vector3.Normalize(light.DirectionOrPosition - hit.Point);
+        Vector3 lightDir;
+        float maxDist;
+        float geometric;
+        if (light.Kind == GpuLightKind.Directional)
+        {
+            lightDir = Vector3.Normalize(-light.DirectionOrPosition);
+            maxDist = 1e6f;
+            geometric = weightSum;
+        }
+        else if (light.Kind == GpuLightKind.Rect)
+        {
+            var su = (float)rng.NextDouble() * 2f - 1f;
+            var sv = (float)rng.NextDouble() * 2f - 1f;
+            var lightPos = light.DirectionOrPosition + light.U * su + light.V * sv;
+            var toLight = lightPos - hit.Point;
+            maxDist = toLight.Length();
+            if (maxDist < 1e-4f)
+            {
+                return Vector3.Zero;
+            }
 
-        var maxDist = light.Kind == GpuLightKind.Directional
-            ? 1e6f
-            : (light.DirectionOrPosition - hit.Point).Length();
+            lightDir = toLight / maxDist;
+            var lightNormal = Vector3.Normalize(Vector3.Cross(light.U, light.V));
+            var cosLight = MathF.Abs(Vector3.Dot(lightNormal, -lightDir));
+            if (cosLight <= 1e-5f)
+            {
+                return Vector3.Zero;
+            }
+
+            var rectArea = 4f * light.U.Length() * light.V.Length();
+            var power = MathF.Max(LightPower(light), 1e-4f);
+            var distSq = MathF.Max(maxDist * maxDist, 0.04f);
+            geometric = (weightSum / power) * light.Intensity * cosLight * rectArea / distSq;
+        }
+        else
+        {
+            var toLight = light.DirectionOrPosition - hit.Point;
+            maxDist = toLight.Length();
+            lightDir = maxDist > 1e-4f ? toLight / maxDist : Vector3.UnitY;
+            var power = MathF.Max(LightPower(light), 1e-4f);
+            var distSq = MathF.Max(maxDist * maxDist, 0.04f);
+            geometric = (weightSum / power) * light.Intensity / distSq;
+        }
 
         if (!ShadowRayClear(hit.Point, lightDir, scene, maxDist))
         {
@@ -313,10 +353,30 @@ internal static class PathTracerEngine
 
         var ndotl = MathF.Max(0f, Vector3.Dot(n, lightDir));
         var diffuse = baseColor * ((1f - metallic) * ndotl / MathF.PI);
-        var geometric = light.Kind == GpuLightKind.Directional
-            ? weightSum
-            : weightSum / (maxDist * maxDist + 1e-3f);
-        return diffuse * light.Color * geometric;
+        var f0 = Vector3.Lerp(new Vector3(0.04f), baseColor, metallic);
+        var specular = f0 * (metallic * ndotl);
+        return (diffuse + specular) * light.Color * geometric;
+    }
+
+    private static float LightPower(GpuLight light)
+    {
+        if (light.Kind == GpuLightKind.Rect)
+        {
+            return light.Intensity * MathF.Max(4f * light.U.Length() * light.V.Length(), 1e-6f);
+        }
+
+        return light.Intensity;
+    }
+
+    private static Vector3 ClampRadiance(Vector3 radiance)
+    {
+        var peak = MathF.Max(radiance.X, MathF.Max(radiance.Y, radiance.Z));
+        if (peak <= FireflyClamp)
+        {
+            return radiance;
+        }
+
+        return radiance * (FireflyClamp / peak);
     }
 
     private static Vector3 ResolveBaseColor(GpuMaterial mat, Vector3 hitPoint)

@@ -326,9 +326,9 @@ public sealed class PathTraceBackgroundWorker : IDisposable
         PublishFrame(backend);
     }
 
-    // Kernel-bound on ILGPU: short bounce budget keeps blitHz / spp/s interactive at 640×360.
+    // Preview stays shallow; settled accumulate uses full bounce budget for cleaner GI.
     private const int MovingPreviewMaxDepth = 3;
-    private const int FullTraceMaxDepth = 4;
+    private const int FullTraceMaxDepth = 6;
 
     private static void ApplyTraceDepth(IRayTracingBackend backend, int maxDepth)
     {

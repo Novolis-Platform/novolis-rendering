@@ -12,15 +12,15 @@ namespace Novolis.Rendering.Backends.Igpu;
 internal static class IlgpuPathTracerKernels
 {
     private const int AbsoluteMaxDepth = 6;
-    /// <summary>Shadow BVH is the SM tax — NEE on camera hit + first bounce only.</summary>
-    private const int NeeMaxDepth = 2;
+    /// <summary>Shadow BVH is the SM tax — NEE through the second bounce (settled GI).</summary>
+    private const int NeeMaxDepth = 3;
     private const float Epsilon = 1e-4f;
     private const int MaxLights = 16;
     private const int BvhStackCapacity = 64;
-    private const float DisplayExposure = 1.1f;
+    private const float DisplayExposure = 1.25f;
     private const float Pi = 3.14159265f;
-    private const float EnvStrength = 0.08f;
-    private const float FireflyClamp = 4f;
+    private const float EnvStrength = 0.04f;
+    private const float FireflyClamp = 6f;
 
     /// <summary>
     /// Traces <see cref="IlgpuTraceLaunch.SampleCount"/> samples for one pixel in a single launch
@@ -75,6 +75,7 @@ internal static class IlgpuPathTracerKernels
                 bvhNodes,
                 bvhRootIndex,
                 triangleOrder);
+            radiance = ClampRadiance(radiance);
             sum = sampleIndex == 0 ? radiance : Float3.Add(sum, radiance);
         }
 
@@ -121,9 +122,14 @@ internal static class IlgpuPathTracerKernels
             var mat = materials[hitMat];
             if (mat.Model == MaterialModel.Emissive)
             {
-                radiance = Float3.Add(
-                    radiance,
-                    Float3.Mul(throughput, Float3.Scale(Float3.Create(mat.A.X, mat.A.Y, mat.A.Z), mat.A.W)));
+                // NEE owns illumination; only credit directly visible emitters (avoids softbox double-count mud).
+                if (depth == 0)
+                {
+                    radiance = Float3.Add(
+                        radiance,
+                        Float3.Mul(throughput, Float3.Scale(Float3.Create(mat.A.X, mat.A.Y, mat.A.Z), mat.A.W)));
+                }
+
                 break;
             }
 
@@ -299,11 +305,11 @@ internal static class IlgpuPathTracerKernels
             return Float3.Zero;
         }
 
-        // Intensity-weighted single light (softbox dominates) — uniform pick wasted 75% of shadow rays.
+        // Power-weighted single light — rect softbox usually wins.
         var weightSum = 0f;
         for (var i = 0; i < lightsToProcess; i++)
         {
-            weightSum += TracerMath.Max(lights[i].Intensity, 1e-4f);
+            weightSum += TracerMath.Max(LightPower(lights[i]), 1e-4f);
         }
 
         var pick = NextFloat(ref rng) * weightSum;
@@ -311,7 +317,7 @@ internal static class IlgpuPathTracerKernels
         var cumulative = 0f;
         for (var i = 0; i < lightsToProcess; i++)
         {
-            cumulative += TracerMath.Max(lights[i].Intensity, 1e-4f);
+            cumulative += TracerMath.Max(LightPower(lights[i]), 1e-4f);
             if (pick <= cumulative)
             {
                 lightIndex = i;
@@ -325,17 +331,60 @@ internal static class IlgpuPathTracerKernels
             ? 0f
             : TracerMath.Clamp(mat.B.X, 0f, 1f);
         var n = hitNormal;
-        var lightPos = Float3.Create(
+        var lightCenter = Float3.Create(
             light.DirectionOrPosition.X,
             light.DirectionOrPosition.Y,
             light.DirectionOrPosition.Z);
-        var lightDir = light.Kind == GpuLightKind.Directional
-            ? Float3.Normalize(Float3.Scale(lightPos, -1f))
-            : Float3.Normalize(Float3.Sub(lightPos, hitPoint));
 
-        var maxDist = light.Kind == GpuLightKind.Directional
-            ? 1e6f
-            : Float3.Length(Float3.Sub(lightPos, hitPoint));
+        Float3 lightPos;
+        Float3 lightDir;
+        float maxDist;
+        float geometric;
+        if (light.Kind == GpuLightKind.Directional)
+        {
+            lightPos = lightCenter;
+            lightDir = Float3.Normalize(Float3.Scale(lightPos, -1f));
+            maxDist = 1e6f;
+            geometric = weightSum;
+        }
+        else if (light.Kind == GpuLightKind.Rect)
+        {
+            var uAxis = Float3.Create(light.U.X, light.U.Y, light.U.Z);
+            var vAxis = Float3.Create(light.V.X, light.V.Y, light.V.Z);
+            var su = NextFloat(ref rng) * 2f - 1f;
+            var sv = NextFloat(ref rng) * 2f - 1f;
+            lightPos = Float3.Add(lightCenter, Float3.Add(Float3.Scale(uAxis, su), Float3.Scale(vAxis, sv)));
+            var toLight = Float3.Sub(lightPos, hitPoint);
+            maxDist = Float3.Length(toLight);
+            if (maxDist < 1e-4f)
+            {
+                return Float3.Zero;
+            }
+
+            lightDir = Float3.Scale(toLight, 1f / maxDist);
+            var lightNormal = Float3.Normalize(Float3.Cross(uAxis, vAxis));
+            var cosLight = TracerMath.Abs(Float3.Dot(lightNormal, Float3.Scale(lightDir, -1f)));
+            if (cosLight <= 1e-5f)
+            {
+                return Float3.Zero;
+            }
+
+            var rectArea = 4f * Float3.Length(uAxis) * Float3.Length(vAxis);
+            // pdf_pick ∝ power; radiance stored in Intensity — scale by weightSum/power * area*cos/r².
+            var power = TracerMath.Max(LightPower(light), 1e-4f);
+            var distSq = TracerMath.Max(maxDist * maxDist, 0.04f);
+            geometric = (weightSum / power) * light.Intensity * cosLight * rectArea / distSq;
+        }
+        else
+        {
+            lightPos = lightCenter;
+            var toLight = Float3.Sub(lightPos, hitPoint);
+            maxDist = Float3.Length(toLight);
+            lightDir = maxDist > 1e-4f ? Float3.Scale(toLight, 1f / maxDist) : Float3.UnitY;
+            var power = TracerMath.Max(LightPower(light), 1e-4f);
+            var distSq = TracerMath.Max(maxDist * maxDist, 0.04f);
+            geometric = (weightSum / power) * light.Intensity / distSq;
+        }
 
         if (!ShadowClear(hitPoint, hitNormal, lightDir, maxDist, triangles, materials, bvhNodes, bvhRootIndex, triangleOrder))
         {
@@ -343,14 +392,24 @@ internal static class IlgpuPathTracerKernels
         }
 
         var ndotl = TracerMath.Max(0f, Float3.Dot(n, lightDir));
-        // Lambert NEE only — GGX microfacet was extra ALU for little interactive gain.
         var diffuse = Float3.Scale(baseColor, (1f - metallic) * ndotl / Pi);
+        var f0 = Float3.Lerp(Float3.Create(0.04f, 0.04f, 0.04f), baseColor, metallic);
+        var specular = Float3.Scale(f0, metallic * ndotl);
+        var brdf = Float3.Add(diffuse, specular);
         var lightColor = Float3.Create(light.Color.X, light.Color.Y, light.Color.Z);
-        // pdf ∝ intensity → intensity cancels; scale by weightSum / r² (or 1 for directional).
-        var geometric = light.Kind == GpuLightKind.Directional
-            ? weightSum
-            : weightSum / (maxDist * maxDist + 1e-3f);
-        return Float3.Scale(Float3.Mul(diffuse, lightColor), geometric);
+        return Float3.Scale(Float3.Mul(brdf, lightColor), geometric);
+    }
+
+    private static float LightPower(GpuLight light)
+    {
+        if (light.Kind == GpuLightKind.Rect)
+        {
+            var area = 4f * Float3.Length(Float3.Create(light.U.X, light.U.Y, light.U.Z))
+                * Float3.Length(Float3.Create(light.V.X, light.V.Y, light.V.Z));
+            return light.Intensity * TracerMath.Max(area, 1e-6f);
+        }
+
+        return light.Intensity;
     }
 
     private static bool IntersectScene(
@@ -708,6 +767,17 @@ internal static class IlgpuPathTracerKernels
         }
 
         return env;
+    }
+
+    private static Float3 ClampRadiance(Float3 radiance)
+    {
+        var peak = Float3.MaxComponent(radiance);
+        if (peak <= FireflyClamp)
+        {
+            return radiance;
+        }
+
+        return Float3.Scale(radiance, FireflyClamp / peak);
     }
 
     private static void WriteRgba(ArrayView<byte> display, Index1D index, Float3 color)

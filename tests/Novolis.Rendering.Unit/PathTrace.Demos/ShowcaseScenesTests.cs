@@ -13,19 +13,27 @@ public sealed class ShowcaseScenesTests
     }
 
     [Test]
-    public async Task BuildStudioShowcase_extracts_emissive_point_lights()
+    public async Task BuildStudioShowcase_extracts_emissive_nee_lights()
     {
         var studio = ShowcaseScenes.BuildStudioShowcase();
-        var pointLights = 0;
+        var neeLights = 0;
+        var hasRect = false;
         foreach (var light in studio.Lights)
         {
-            if (light.Kind == Novolis.Rendering.Runtime.GpuLightKind.Point)
+            if (light.Kind is Novolis.Rendering.Runtime.GpuLightKind.Point
+                or Novolis.Rendering.Runtime.GpuLightKind.Rect)
             {
-                pointLights++;
+                neeLights++;
+            }
+
+            if (light.Kind == Novolis.Rendering.Runtime.GpuLightKind.Rect)
+            {
+                hasRect = true;
             }
         }
 
-        await Assert.That(pointLights).IsGreaterThanOrEqualTo(3);
+        await Assert.That(neeLights).IsGreaterThanOrEqualTo(1);
+        await Assert.That(hasRect).IsTrue();
     }
 
     [Test]

@@ -1,6 +1,4 @@
-﻿using System.Numerics;
-
-namespace Novolis.Rendering.Runtime;
+﻿namespace Novolis.Rendering.Runtime;
 
 /// <summary>Runtime light classification for GPU kernels.</summary>
 public enum GpuLightKind : byte
@@ -10,4 +8,10 @@ public enum GpuLightKind : byte
 
     /// <summary>Point light with position stored in <see cref="GpuLight.DirectionOrPosition"/>.</summary>
     Point,
+
+    /// <summary>
+    /// Rectangular area light: center in <see cref="GpuLight.DirectionOrPosition"/>,
+    /// half-extent axes in <see cref="GpuLight.U"/> / <see cref="GpuLight.V"/>.
+    /// </summary>
+    Rect,
 }

@@ -140,7 +140,7 @@ public static class MaterialPresets
 
         /// <summary>Ceiling softbox panel.</summary>
         public static EmissiveMaterial Softbox() =>
-            Emissive(Colors.Softbox, strength: 8f);
+            Emissive(Colors.Softbox, strength: 5f);
 
         /// <summary>Cyan lightsaber blade.</summary>
         public static EmissiveMaterial LightsaberCyan() =>
