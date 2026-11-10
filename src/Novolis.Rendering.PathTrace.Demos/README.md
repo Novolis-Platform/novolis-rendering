@@ -59,7 +59,8 @@ var title = PathTraceStatusTitle.Format(
     session.Backend,
     display.DisplayedSampleCount,
     orbitEnabled: true,
-    fps: 60f,
+    blitHz: 12f,
+    sppPerSecond: 384f,
     rendering: worker.IsBusy);
 ```
 
