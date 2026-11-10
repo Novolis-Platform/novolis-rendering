@@ -78,6 +78,17 @@ public sealed class SceneBuilder
         return this;
     }
 
+    /// <summary>Adds a point light (used for next-event estimation of emissive props).</summary>
+    /// <param name="position">World-space position.</param>
+    /// <param name="color">Linear RGB color.</param>
+    /// <param name="intensity">Intensity multiplier (falloff applied in the tracer).</param>
+    /// <returns>This builder for chaining.</returns>
+    public SceneBuilder AddPointLight(Vector3 position, Vector3 color, float intensity = 1f)
+    {
+        _lights.Add(new LightDefinition(LightKind.Point, position, color, intensity));
+        return this;
+    }
+
     /// <summary>Materializes the authoring scene.</summary>
     /// <returns>A <see cref="Scene"/> containing accumulated meshes and lights.</returns>
     public Scene Build() => new(_meshes, _lights);

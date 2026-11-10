@@ -58,7 +58,7 @@ public static class ShowcaseScenes
         var builder = new SceneBuilder();
         AddDioramaShell(builder, halfW, halfD, height, wallT, redWall, greenWall, white, ceiling);
         AddCheckerFloor(builder, halfW, halfD, tiles: 10);
-        AddStudioProps(builder, height);
+        AddStudioProps(builder);
         AddStudioLights(builder, height);
 
         return SceneCompiler.Compile(builder.Build());
@@ -116,7 +116,7 @@ public static class ShowcaseScenes
         }
     }
 
-    private static void AddStudioProps(SceneBuilder builder, float height)
+    private static void AddStudioProps(SceneBuilder builder)
     {
         builder
             // Classic matte red block
@@ -169,28 +169,34 @@ public static class ShowcaseScenes
                 new Vector3(-0.35f, 0.06f, 0.55f),
                 new Vector3(0.18f, 0.05f, 0.1f),
                 MaterialPresets.Standard(new Vector3(0.05f, 0.05f, 0.06f), roughness: 0.95f))
+            // Neon lightsaber: dark hilt + cyan blade (emissive → point-light NEE at compile)
+            .AddBox(
+                new Vector3(0.72f, 0.08f, 0.05f),
+                new Vector3(0.028f, 0.08f, 0.028f),
+                MaterialPresets.Metal(new Vector3(0.12f, 0.12f, 0.14f), roughness: 0.35f))
+            .AddBox(
+                new Vector3(0.72f, 0.48f, 0.05f),
+                new Vector3(0.018f, 0.32f, 0.018f),
+                MaterialPresets.Emissive(new Vector3(0.35f, 0.95f, 1f), strength: 22f))
+            // Magenta neon stick
+            .AddBox(
+                new Vector3(-0.72f, 0.42f, 0.15f),
+                new Vector3(0.016f, 0.38f, 0.016f),
+                MaterialPresets.Emissive(new Vector3(1f, 0.2f, 0.75f), strength: 16f))
             // Small warm emissive accent
             .AddBox(
-                new Vector3(0.62f, 0.55f, 0.45f),
+                new Vector3(0.55f, 0.55f, 0.55f),
                 new Vector3(0.035f, 0.035f, 0.035f),
-                MaterialPresets.Emissive(new Vector3(1f, 0.55f, 0.2f), strength: 6f))
-            // Cool emissive pillar tip
-            .AddBox(
-                new Vector3(-0.7f, height - 0.18f, -0.55f),
-                new Vector3(0.03f, 0.08f, 0.03f),
-                MaterialPresets.Emissive(new Vector3(0.45f, 0.7f, 1f), strength: 5f));
+                MaterialPresets.Emissive(new Vector3(1f, 0.55f, 0.2f), strength: 6f));
     }
 
     private static void AddStudioLights(SceneBuilder builder, float height)
     {
-        // Soft area-light stand-in on the ceiling (path-traced emission + bounce).
-        builder
-            .AddBox(
-                new Vector3(0f, height - 0.02f, -0.05f),
-                new Vector3(0.32f, 0.015f, 0.24f),
-                MaterialPresets.Emissive(new Vector3(1f, 0.96f, 0.9f), strength: 8f))
-            .AddDirectionalLight(new Vector3(0.15f, -0.85f, -0.45f), new Vector3(1f, 0.97f, 0.92f), 0.55f)
-            .AddDirectionalLight(new Vector3(-0.55f, -0.35f, 0.75f), new Vector3(0.55f, 0.65f, 0.9f), 0.28f)
-            .AddDirectionalLight(new Vector3(0.35f, -0.2f, 0.9f), new Vector3(0.35f, 0.4f, 0.55f), 0.18f);
+        // Ceiling softbox only — no directional sun. Emissive meshes are also extracted to
+        // point lights at compile so DirectLighting can NEE them (kills the muddy lucky-hit GI).
+        builder.AddBox(
+            new Vector3(0f, height - 0.02f, -0.05f),
+            new Vector3(0.32f, 0.015f, 0.24f),
+            MaterialPresets.Emissive(new Vector3(1f, 0.96f, 0.9f), strength: 10f));
     }
 }

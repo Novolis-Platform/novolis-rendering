@@ -34,3 +34,12 @@ Wrong patterns that keep the card idle:
 Right pattern: **coalesce camera**, finish a **multi-spp GPU batch**, **one readback**, then take the latest pending pose. Longer term: CUDA–GL interop removes the bounce.
 
 On an RTX 4070 @ interactive res, expect `exec+readback` ≈ 99% of present cost. Raise samples **inside** each batch before flushing — that is how you spend the 4070.
+
+## Quality diagnosis (muddy stills @ high spp)
+
+If the image stays grainy at hundreds of samples, the bottleneck is **estimator variance**, not GPU throughput:
+
+1. **Emissive geometry without NEE** — `DirectLighting` only samples `GpuLight`. Ceiling panels / neon sticks that are *only* emissive meshes light the room via lucky bounces → salt-and-pepper forever. Fix: `SceneCompiler` extracts emissive meshes to point lights (and point falloff `1/r²`).
+2. **Bright open-face environment** — HDR sky through the diorama mouth is an unsampled light. Fix: dim `SampleSky` (`EnvStrength`).
+3. **Directional sun + interior emissives** — competing estimators. Studio scene is emissive-lit only.
+4. Present cost being low while mud remains confirms you are **sample-efficiency** bound, not SM-bound.

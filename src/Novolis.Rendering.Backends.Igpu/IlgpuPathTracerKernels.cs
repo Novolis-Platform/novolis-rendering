@@ -13,10 +13,12 @@ internal static class IlgpuPathTracerKernels
 {
     private const int AbsoluteMaxDepth = 5;
     private const float Epsilon = 1e-4f;
-    private const int MaxLights = 8;
+    private const int MaxLights = 16;
     private const int BvhStackCapacity = 64;
-    private const float DisplayExposure = 1.6f;
+    private const float DisplayExposure = 1.35f;
     private const float Pi = 3.14159265f;
+    private const float EnvStrength = 0.12f;
+    private const float FireflyClamp = 8f;
 
     public static void TracePixelKernel(
         Index1D index,
@@ -248,9 +250,12 @@ internal static class IlgpuPathTracerKernels
             var f0 = Float3.Lerp(Float3.Create(0.04f, 0.04f, 0.04f), baseColor, metallic);
             var spec = GgxSpec(n, v, lightDir, roughness, f0);
             var lightColor = Float3.Create(light.Color.X, light.Color.Y, light.Color.Z);
+            var atten = light.Kind == GpuLightKind.Directional
+                ? light.Intensity
+                : light.Intensity / (maxDist * maxDist + 1e-3f);
             radiance = Float3.Add(
                 radiance,
-                Float3.Mul(Float3.Add(Float3.Scale(diffuse, ndotl), spec), Float3.Scale(lightColor, light.Intensity)));
+                Float3.Mul(Float3.Add(Float3.Scale(diffuse, ndotl), spec), Float3.Scale(lightColor, atten)));
         }
 
         return radiance;
@@ -580,15 +585,16 @@ internal static class IlgpuPathTracerKernels
 
     private static Float3 SampleSky(Float3 direction, ArrayView<GpuLight> lights, int lightCount)
     {
-        var ground = Float3.Create(0.35f, 0.3f, 0.35f);
-        var horizon = Float3.Create(1f, 1f, 1f);
-        var zenith = Float3.Create(0.08f, 0.37f, 0.73f);
+        // Dim env: open-face dioramas otherwise get HDR sky noise that never cleans at interactive spp.
+        var ground = Float3.Create(0.04f, 0.035f, 0.04f);
+        var horizon = Float3.Create(0.12f, 0.12f, 0.14f);
+        var zenith = Float3.Create(0.02f, 0.05f, 0.1f);
         // Avoid MathF.Pow — raise with multiplies for a soft curve.
         var t = TracerMath.Clamp((direction.Y + 0.01f) / 0.4f, 0f, 1f);
         var skyT = t * t; // ~pow(t, 2) stand-in for Lague's 0.35 curve
         var groundToSky = TracerMath.Clamp(direction.Y * 50f + 0.5f, 0f, 1f);
         var sky = Float3.Lerp(horizon, zenith, skyT);
-        var env = Float3.Lerp(ground, sky, groundToSky);
+        var env = Float3.Scale(Float3.Lerp(ground, sky, groundToSky), EnvStrength);
 
         var sun = Float3.Zero;
         var count = TracerMath.Min(lightCount, MaxLights);
@@ -633,7 +639,7 @@ internal static class IlgpuPathTracerKernels
 
     private static byte ToByte(float v)
     {
-        var exposed = v * DisplayExposure;
+        var exposed = TracerMath.Min(v, FireflyClamp) * DisplayExposure;
         var gamma = TracerMath.Sqrt(TracerMath.Max(exposed, 0f));
         return (byte)TracerMath.Clamp((int)(gamma * 255f), 0, 255);
     }

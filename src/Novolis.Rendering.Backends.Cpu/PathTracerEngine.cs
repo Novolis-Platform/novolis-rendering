@@ -13,7 +13,9 @@ internal static class PathTracerEngine
     private const int AbsoluteMaxDepth = 5;
     private const float Epsilon = 1e-4f;
     private const int TileSize = 32;
-    private const float DisplayExposure = 1.6f;
+    private const float DisplayExposure = 1.35f;
+    private const float EnvStrength = 0.12f;
+    private const float FireflyClamp = 8f;
 
     public static void RenderSample(
         Vector3[] accumulation,
@@ -278,7 +280,10 @@ internal static class PathTracerEngine
             var diffuse = baseColor * (1f - metallic);
             var f0 = Vector3.Lerp(new Vector3(0.04f), baseColor, metallic);
             var spec = GgxSpec(n, v, lightDir, roughness, f0);
-            radiance += (diffuse * ndotl + spec) * light.Color * light.Intensity;
+            var atten = light.Kind == GpuLightKind.Directional
+                ? light.Intensity
+                : light.Intensity / (maxDist * maxDist + 1e-3f);
+            radiance += (diffuse * ndotl + spec) * light.Color * atten;
         }
 
         return radiance;
@@ -385,13 +390,13 @@ internal static class PathTracerEngine
 
     private static Vector3 SampleSky(Vector3 direction, CompiledScene scene)
     {
-        var ground = new Vector3(0.35f, 0.3f, 0.35f);
-        var horizon = Vector3.One;
-        var zenith = new Vector3(0.08f, 0.37f, 0.73f);
+        var ground = new Vector3(0.04f, 0.035f, 0.04f);
+        var horizon = new Vector3(0.12f, 0.12f, 0.14f);
+        var zenith = new Vector3(0.02f, 0.05f, 0.1f);
         var skyT = MathF.Pow(System.Math.Clamp((direction.Y + 0.01f) / 0.4f, 0f, 1f), 0.35f);
         var groundToSky = System.Math.Clamp(direction.Y * 50f + 0.5f, 0f, 1f);
         var sky = Vector3.Lerp(horizon, zenith, skyT);
-        var env = Vector3.Lerp(ground, sky, groundToSky);
+        var env = Vector3.Lerp(ground, sky, groundToSky) * EnvStrength;
 
         var sun = Vector3.Zero;
         foreach (var light in scene.Lights)
@@ -418,7 +423,7 @@ internal static class PathTracerEngine
     {
         static byte ToByte(float v)
         {
-            var exposed = v * DisplayExposure;
+            var exposed = MathF.Min(v, FireflyClamp) * DisplayExposure;
             var gamma = MathF.Sqrt(MathF.Max(exposed, 0f));
             return (byte)System.Math.Clamp((int)(gamma * 255f), 0, 255);
         }

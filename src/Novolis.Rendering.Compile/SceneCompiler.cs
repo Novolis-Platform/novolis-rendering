@@ -10,6 +10,18 @@ namespace Novolis.Rendering.Compile;
 /// <summary>Compiles authoring scenes into flat runtime structures.</summary>
 public static class SceneCompiler
 {
+    /// <summary>
+    /// Caps extracted + authored lights. Must stay ≤ kernel <c>MaxLights</c>
+    /// (ILGPU DirectLighting loop).
+    /// </summary>
+    public const int MaxCompiledLights = 16;
+
+    /// <summary>
+    /// Scales emissive mesh area×strength into a point-light intensity so DirectLighting
+    /// can next-event-estimate glowing props (without this, only lucky bounces light the room → mud).
+    /// </summary>
+    private const float EmissivePointLightScale = 0.45f;
+
     /// <summary>Compiles meshes, materials, lights, and a BVH into a <see cref="CompiledScene"/>.</summary>
     /// <param name="scene">Authoring scene graph.</param>
     /// <returns>Flat runtime scene for backends.</returns>
@@ -20,7 +32,7 @@ public static class SceneCompiler
         var triangles = new List<GpuTriangle>();
         var materials = new List<GpuMaterial>();
         var materialMap = new Dictionary<IMaterial, int>();
-        var lights = scene.Lights.Select(ToGpuLight).ToImmutableArray();
+        var lights = new List<GpuLight>(scene.Lights.Select(ToGpuLight));
 
         var allVertices = new List<Vector3>();
         var allIndices = new List<int>();
@@ -41,6 +53,7 @@ public static class SceneCompiler
                 allVertices.Add(Vector3.Transform(mesh.Vertices[i], mesh.Transform));
             }
 
+            var meshTriStart = triangles.Count;
             for (var t = 0; t < mesh.TriangleIndices.Length; t += 3)
             {
                 var i0 = baseVertex + mesh.TriangleIndices[t];
@@ -60,11 +73,15 @@ public static class SceneCompiler
                     new Vector4(v2, 0f),
                     materialIndex));
             }
+
+            TryAddEmissivePointLight(lights, mesh.Material, triangles, meshTriStart, triangles.Count);
         }
+
+        TrimLights(lights);
 
         if (triangles.Count == 0)
         {
-            return CompiledScene.Empty with { Lights = lights, Materials = materials.ToImmutableArray() };
+            return CompiledScene.Empty with { Lights = lights.ToImmutableArray(), Materials = materials.ToImmutableArray() };
         }
 
         var flatIndices = new int[triangleMaterialIndices.Count * 3];
@@ -89,11 +106,68 @@ public static class SceneCompiler
         {
             Triangles = triangles.ToImmutableArray(),
             Materials = materials.ToImmutableArray(),
-            Lights = lights,
+            Lights = lights.ToImmutableArray(),
             BvhNodes = bvh.Nodes.ToImmutableArray(),
             TriangleOrder = bvh.TriangleOrder.ToImmutableArray(),
             BvhRootIndex = bvh.RootIndex,
         };
+    }
+
+    private static void TryAddEmissivePointLight(
+        List<GpuLight> lights,
+        IMaterial material,
+        List<GpuTriangle> triangles,
+        int triStart,
+        int triEnd)
+    {
+        if (material is not EmissiveMaterial emissive || triEnd <= triStart)
+        {
+            return;
+        }
+
+        var area = 0f;
+        var weightedCentroid = Vector3.Zero;
+        for (var i = triStart; i < triEnd; i++)
+        {
+            var t = triangles[i];
+            var a = new Vector3(t.A.X, t.A.Y, t.A.Z);
+            var b = new Vector3(t.B.X, t.B.Y, t.B.Z);
+            var c = new Vector3(t.C.X, t.C.Y, t.C.Z);
+            var triArea = Vector3.Cross(b - a, c - a).Length() * 0.5f;
+            if (triArea <= 1e-8f)
+            {
+                continue;
+            }
+
+            area += triArea;
+            weightedCentroid += (a + b + c) * (triArea / 3f);
+        }
+
+        if (area <= 1e-6f)
+        {
+            return;
+        }
+
+        var centroid = weightedCentroid / area;
+        var intensity = MathF.Max(emissive.EmissionStrength, 0f) * area * EmissivePointLightScale;
+        if (intensity <= 1e-5f)
+        {
+            return;
+        }
+
+        lights.Add(new GpuLight(GpuLightKind.Point, centroid, emissive.EmissionColor, intensity));
+    }
+
+    private static void TrimLights(List<GpuLight> lights)
+    {
+        if (lights.Count <= MaxCompiledLights)
+        {
+            return;
+        }
+
+        // Prefer keeping authored + brightest emissive proxies.
+        lights.Sort(static (a, b) => b.Intensity.CompareTo(a.Intensity));
+        lights.RemoveRange(MaxCompiledLights, lights.Count - MaxCompiledLights);
     }
 
     private static GpuLight ToGpuLight(LightDefinition light) =>

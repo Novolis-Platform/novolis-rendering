@@ -13,11 +13,19 @@ public sealed class ShowcaseScenesTests
     }
 
     [Test]
-    public async Task BuildStudioShowcase_has_more_lights_than_hello()
+    public async Task BuildStudioShowcase_extracts_emissive_point_lights()
     {
-        var hello = ShowcaseScenes.BuildHelloShowcase();
         var studio = ShowcaseScenes.BuildStudioShowcase();
-        await Assert.That(studio.Lights.Length).IsGreaterThan(hello.Lights.Length);
+        var pointLights = 0;
+        foreach (var light in studio.Lights)
+        {
+            if (light.Kind == Novolis.Rendering.Runtime.GpuLightKind.Point)
+            {
+                pointLights++;
+            }
+        }
+
+        await Assert.That(pointLights).IsGreaterThanOrEqualTo(3);
     }
 
     [Test]
