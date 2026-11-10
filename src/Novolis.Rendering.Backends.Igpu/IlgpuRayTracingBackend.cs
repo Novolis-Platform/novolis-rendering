@@ -63,19 +63,38 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, ITraceDepthCont
             return;
         }
 
-        _context = Context.CreateDefault();
-        var device = IlgpuDeviceSelector.SelectDevice(_context);
-        _accelerator = device.CreateAccelerator(_context);
-        _useGpu = _accelerator.AcceleratorType != AcceleratorType.CPU;
-        if (!_useGpu)
+        try
         {
-            _gpuFallbackReason = $"accelerator={_accelerator.AcceleratorType}";
+            _context = Context.CreateDefault();
+            var device = IlgpuDeviceSelector.SelectDevice(_context);
+            _accelerator = device.CreateAccelerator(_context);
+            _useGpu = _accelerator.AcceleratorType != AcceleratorType.CPU;
+            if (!_useGpu)
+            {
+                _gpuFallbackReason = $"accelerator={_accelerator.AcceleratorType}";
+            }
+            else if (!TryLoadTraceKernel(out var loadError))
+            {
+                // Some CUDA/OpenCL ILGPU compilers ICE on this kernel; keep CPU path green.
+                _useGpu = false;
+                _gpuFallbackReason = loadError;
+            }
         }
-        else if (!TryLoadTraceKernel(out var loadError))
+        catch (Exception exception) when (
+            exception is TypeInitializationException
+                or PlatformNotSupportedException
+                or DllNotFoundException
+                or EntryPointNotFoundException
+                or NotSupportedException
+                or InvalidOperationException)
         {
-            // Some CUDA/OpenCL ILGPU compilers ICE on this kernel; keep CPU path green.
+            // Hosts without dynamic-code / native ILGPU runtimes must stay previewable.
             _useGpu = false;
-            _gpuFallbackReason = loadError;
+            _gpuFallbackReason = exception.GetBaseException().Message;
+            _accelerator?.Dispose();
+            _context?.Dispose();
+            _accelerator = null;
+            _context = null;
         }
 
         if (!_useGpu)
