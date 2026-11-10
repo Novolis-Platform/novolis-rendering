@@ -50,10 +50,13 @@ Attach materials to meshes via `SceneBuilder.AddBox(..., material)` or `MeshInst
 | `GlassMaterial` | Transmission (tint, roughness, IOR, absorption) |
 | `SkinMaterial` | Approximate subsurface scattering |
 | `EmissiveMaterial` | Geometry-driven light emission |
-| `MaterialPresets` | `Standard`, `Metal`, `Glass`, `Skin`, `Emissive`, `Colors.*` |
+| `MaterialPresets` | `Standard`, `Metal`, `Glass`, `Skin`, `Emissive`, `Neon`, `Colors.*` |
+| `MaterialPresets.Showcase` | Named diorama looks (Cornell walls, checker, lightsaber, softbox, …) |
 | `MaterialCompiler` | `Compile(IMaterial)` → `GpuMaterial` |
 
 Compiled output uses `MaterialModel` (`Standard`, `Glass`, `Skin`, `Emissive`) and three `Vector4` parameter slots defined in `Novolis.Rendering.Runtime`.
+
+**Capability test:** `ShowcaseScenes.BuildStudioShowcase()` / SilkTraceStudio dogfoods every model via `MaterialPresets.Showcase` (not ad-hoc color literals).
 
 ## Related
 

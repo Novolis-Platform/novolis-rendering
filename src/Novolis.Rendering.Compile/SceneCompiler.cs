@@ -20,7 +20,7 @@ public static class SceneCompiler
     /// Scales emissive mesh area×strength into a point-light intensity so DirectLighting
     /// can next-event-estimate glowing props (without this, only lucky bounces light the room → mud).
     /// </summary>
-    private const float EmissivePointLightScale = 0.45f;
+    private const float EmissivePointLightScale = 1.1f;
 
     /// <summary>Compiles meshes, materials, lights, and a BVH into a <see cref="CompiledScene"/>.</summary>
     /// <param name="scene">Authoring scene graph.</param>

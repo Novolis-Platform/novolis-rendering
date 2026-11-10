@@ -123,7 +123,8 @@ internal static class IlgpuPathTracerKernels
                         throughput,
                         DirectLighting(direction, hitPoint, hitNormal, mat, lights, lightCount, triangles, bvhNodes, bvhRootIndex, triangleOrder)));
 
-                if (mat.B.Y > 1e-5f)
+                // StandardMaterial packs emission in B.Y / C — Skin uses those lanes for SSS params.
+                if (mat.Model == MaterialModel.Standard && mat.B.Y > 1e-5f)
                 {
                     radiance = Float3.Add(
                         radiance,
@@ -132,7 +133,14 @@ internal static class IlgpuPathTracerKernels
 
                 var baseColor = Float3.Create(mat.A.X, mat.A.Y, mat.A.Z);
                 var roughness = TracerMath.Max(mat.A.W, 0.04f);
-                var metallic = TracerMath.Clamp(mat.B.X, 0f, 1f);
+                var metallic = mat.Model == MaterialModel.Skin ? 0f : TracerMath.Clamp(mat.B.X, 0f, 1f);
+                if (mat.Model == MaterialModel.Skin)
+                {
+                    var subsurface = TracerMath.Clamp(mat.B.X, 0f, 1f);
+                    var blood = Float3.Create(mat.C.X, mat.C.Y, mat.C.Z);
+                    baseColor = Float3.Lerp(baseColor, blood, subsurface * 0.35f);
+                }
+
                 var smoothness = 1f - roughness;
                 var specularProbability = TracerMath.Clamp(metallic * 0.85f + 0.05f, 0.05f, 1f);
                 var isSpecular = NextFloat(ref rng) < specularProbability;

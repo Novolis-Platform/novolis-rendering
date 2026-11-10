@@ -112,7 +112,7 @@ internal static class PathTracerEngine
             else
             {
                 radiance += throughput * DirectLighting(direction, in hit, scene, mat);
-                if (mat.B.Y > 1e-5f)
+                if (mat.Model == MaterialModel.Standard && mat.B.Y > 1e-5f)
                 {
                     radiance += throughput * new Vector3(mat.C.X, mat.C.Y, mat.C.Z) * mat.B.Y;
                 }
@@ -148,7 +148,14 @@ internal static class PathTracerEngine
     {
         var baseColor = new Vector3(mat.A.X, mat.A.Y, mat.A.Z);
         var roughness = MathF.Max(mat.A.W, 0.04f);
-        var metallic = System.Math.Clamp(mat.B.X, 0f, 1f);
+        var metallic = mat.Model == MaterialModel.Skin ? 0f : System.Math.Clamp(mat.B.X, 0f, 1f);
+        if (mat.Model == MaterialModel.Skin)
+        {
+            var subsurface = System.Math.Clamp(mat.B.X, 0f, 1f);
+            var blood = new Vector3(mat.C.X, mat.C.Y, mat.C.Z);
+            baseColor = Vector3.Lerp(baseColor, blood, subsurface * 0.35f);
+        }
+
         var smoothness = 1f - roughness;
         var specularProbability = System.Math.Clamp(metallic * 0.85f + 0.05f, 0.05f, 1f);
         var n = hit.Normal;
