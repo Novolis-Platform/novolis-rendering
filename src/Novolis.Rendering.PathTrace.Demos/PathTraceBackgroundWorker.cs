@@ -18,6 +18,7 @@ public sealed class PathTraceBackgroundWorker : IDisposable
     private bool _resetPending;
     private bool _disposed;
     private bool _jobActive;
+    private JobKind _activeKind;
     private bool _pumpRunning = true;
     private CameraSnapshot? _pendingMovingCamera;
     private int _pendingMovingSamples;
@@ -104,8 +105,9 @@ public sealed class PathTraceBackgroundWorker : IDisposable
     }
 
     /// <summary>
-    /// Cheap moving-camera preview (orbit / drag / zoom): coalesces to the latest pose.
-    /// Cancels an in-flight accumulate batch — motion must not wait on quality work.
+    /// Interactive camera preview (orbit / drag / zoom).
+    /// Coalesces to the latest pose. Never cancels an in-flight <em>moving</em> batch —
+    /// cancelling every UI frame starves the GPU (preemption thrash). Only cancels accumulate.
     /// </summary>
     /// <returns><see langword="true"/> when a new background job was armed.</returns>
     public bool TryEnqueueMovingPreview(CameraSnapshot camera, int samplesPerPose = 4)
@@ -115,26 +117,28 @@ public sealed class PathTraceBackgroundWorker : IDisposable
             return false;
         }
 
-        var cancelInFlight = false;
+        var started = false;
         lock (_gate)
         {
             _pendingMovingCamera = camera;
             _pendingMovingSamples = samplesPerPose;
             _pendingAccumulateCamera = null;
-            if (_jobActive)
+
+            if (_jobActive && _activeKind == JobKind.Accumulate)
             {
-                // Do not wait for a multi-spp accumulate to finish on a stale pose.
-                cancelInFlight = true;
+                // Interrupt progressive refine so motion is not stuck behind a long accumulate.
                 CancelLocked();
             }
-            else
+            else if (!_jobActive)
             {
                 _jobActive = true;
+                started = true;
             }
+            // else: moving job in flight — leave it alone; pending pose is applied on chain.
         }
 
         _wake.Set();
-        return !cancelInFlight;
+        return started;
     }
 
     /// <summary>Alias for <see cref="TryEnqueueMovingPreview"/> (orbit hosts).</summary>
@@ -271,6 +275,7 @@ public sealed class PathTraceBackgroundWorker : IDisposable
         {
             job = new Job(JobKind.Moving, moving, start: 0, _pendingMovingSamples, forceReset: false);
             _pendingMovingCamera = null;
+            _activeKind = JobKind.Moving;
             return true;
         }
 
@@ -283,10 +288,12 @@ public sealed class PathTraceBackgroundWorker : IDisposable
                 _pendingAccumulateCount,
                 _pendingAccumulateForceReset);
             _pendingAccumulateCamera = null;
+            _activeKind = JobKind.Accumulate;
             return true;
         }
 
         job = default;
+        _activeKind = JobKind.None;
         return false;
     }
 
@@ -320,7 +327,8 @@ public sealed class PathTraceBackgroundWorker : IDisposable
         PublishFrame(backend);
     }
 
-    private const int MovingPreviewMaxDepth = 3;
+    // Full bounce budget while moving — the 4070 is readback-bound, not kernel-bound at interactive res.
+    private const int MovingPreviewMaxDepth = 5;
     private const int FullTraceMaxDepth = 5;
 
     private static void ApplyTraceDepth(IRayTracingBackend backend, int maxDepth)

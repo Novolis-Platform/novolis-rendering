@@ -22,4 +22,15 @@ dotnet run -c Release --project d:\novolis\novolis-rendering\benchmarks\Novolis.
 | `orbit-bucket-4spp` | Auto-orbit accumulate bucket |
 | `publish` / `copy-if-new` | CPU display-buffer copies after readback |
 
-On an RTX 4070 @ 320×180, expect `exec+readback` ≈ 99% of present cost and `moving-1spp-loop` ≈ 0.6 ms (~1.5 kHz ceiling before window/UI overhead). The remaining win is eliminating GPU→CPU→GL entirely (CUDA–GL interop) — not more kernel micro-opts.
+## Academic takeaway (RTX 4070)
+
+Interactive path tracing on raster hosts is almost always **present-bound**: one GPU→CPU readback (then GL upload) dominates. Kernel enqueue is ~0.02 ms; `exec+readback` is milliseconds.
+
+Wrong patterns that keep the card idle:
+1. **Cancel/restart every UI frame** while orbiting → samples stuck at 1, SM thrash.
+2. **One sample + one readback** per pose → pays the DMA tax for almost no radiance work.
+3. **Accumulate-with-frozen-camera** for smoothness → stepped motion.
+
+Right pattern: **coalesce camera**, finish a **multi-spp GPU batch**, **one readback**, then take the latest pending pose. Longer term: CUDA–GL interop removes the bounce.
+
+On an RTX 4070 @ interactive res, expect `exec+readback` ≈ 99% of present cost. Raise samples **inside** each batch before flushing — that is how you spend the 4070.
