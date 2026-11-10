@@ -16,4 +16,7 @@ public enum MaterialModel
 
     /// <summary>Emissive (light-emitting) surface.</summary>
     Emissive,
+
+    /// <summary>XZ-plane checker albedo (procedural; one ground quad instead of tile boxes).</summary>
+    Checker,
 }

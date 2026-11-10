@@ -37,18 +37,18 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, ITraceDepthCont
     private bool _useGpu;
     private bool _gpuDisplayDirty;
     private string? _gpuFallbackReason;
-    private int _maxTraceDepth = 8;
-    private Action<Index1D, int, int, int, int, IlgpuCameraParams, ArrayView<Float3>, ArrayView<byte>,
+    private int _maxTraceDepth = 4;
+    private Action<Index1D, IlgpuTraceLaunch, IlgpuCameraParams, ArrayView<Float3>, ArrayView<byte>,
         ArrayView<GpuTriangle>, ArrayView<GpuMaterial>, ArrayView<GpuLight>, int, ArrayView<GpuBvhNode>, int,
         ArrayView<int>>? _traceKernel;
 
     /// <summary>
-    /// Bounce budget for subsequent kernels (1–8). Interactive hosts may lower this while the camera moves.
+    /// Bounce budget for subsequent kernels (1–6). Interactive hosts may lower this while the camera moves.
     /// </summary>
     public int MaxTraceDepth
     {
         get => _maxTraceDepth;
-        set => _maxTraceDepth = value < 1 ? 1 : value > 8 ? 8 : value;
+        set => _maxTraceDepth = value < 1 ? 1 : value > 6 ? 6 : value;
     }
 
     /// <summary>Creates an ILGPU backend; uses CPU fallback when deterministic or when no GPU is available.</summary>
@@ -224,13 +224,8 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, ITraceDepthCont
                 throw new InvalidOperationException("Call ResizeAsync before RenderBatchAsync.");
             }
 
-            for (var i = 0; i < sampleCount; i++)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                EnqueueTraceKernel(camera, startSampleIndex + i);
-            }
-
             cancellationToken.ThrowIfCancellationRequested();
+            EnqueueTraceKernel(camera, startSampleIndex, sampleCount);
             _sampleCount = startSampleIndex + sampleCount;
             _gpuDisplayDirty = true;
             if (flushToCpu)
@@ -328,7 +323,7 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, ITraceDepthCont
     {
         try
         {
-            _traceKernel = _accelerator!.LoadAutoGroupedStreamKernel<Index1D, int, int, int, int, IlgpuCameraParams,
+            _traceKernel = _accelerator!.LoadAutoGroupedStreamKernel<Index1D, IlgpuTraceLaunch, IlgpuCameraParams,
                 ArrayView<Float3>, ArrayView<byte>, ArrayView<GpuTriangle>, ArrayView<GpuMaterial>, ArrayView<GpuLight>,
                 int, ArrayView<GpuBvhNode>, int, ArrayView<int>>(IlgpuPathTracerKernels.TracePixelKernel);
             error = null;
@@ -357,18 +352,23 @@ public sealed class IlgpuRayTracingBackend : IRayTracingBackend, ITraceDepthCont
         _gpuDisplayDirty = false;
     }
 
-    private void EnqueueTraceKernel(CameraSnapshot camera, int sampleIndex)
+    private void EnqueueTraceKernel(CameraSnapshot camera, int startSampleIndex, int sampleCount = 1)
     {
         var kernel = _traceKernel
             ?? throw new InvalidOperationException("GPU kernel was not loaded; backend should have fallen back to CPU.");
         var cameraParams = IlgpuCameraParams.FromSnapshot(camera, _width, _height);
+        var launch = new IlgpuTraceLaunch
+        {
+            Width = _width,
+            Height = _height,
+            StartSampleIndex = startSampleIndex,
+            SampleCount = sampleCount < 1 ? 1 : sampleCount,
+            MaxDepth = _maxTraceDepth,
+        };
         var pixelCount = _width * _height;
         kernel(
             pixelCount,
-            _width,
-            _height,
-            sampleIndex,
-            _maxTraceDepth,
+            launch,
             cameraParams,
             _accumulationGpu!.View,
             _displayGpu!.View,

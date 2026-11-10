@@ -84,13 +84,15 @@ public static class MaterialPresets
         public static StandardMaterial Plaster() =>
             Standard(new Vector3(0.88f, 0.88f, 0.86f), roughness: 0.82f);
 
-        /// <summary>Light checker tile.</summary>
-        public static StandardMaterial CheckerLight() =>
-            Standard(new Vector3(0.82f, 0.8f, 0.74f), roughness: 0.9f);
-
-        /// <summary>Dark checker tile.</summary>
-        public static StandardMaterial CheckerDark() =>
-            Standard(new Vector3(0.16f, 0.16f, 0.18f), roughness: 0.88f);
+        /// <summary>Procedural checker floor (one quad — not tile boxes).</summary>
+        public static CheckerMaterial CheckerFloor() =>
+            new()
+            {
+                ColorA = new Vector3(0.82f, 0.8f, 0.74f),
+                ColorB = new Vector3(0.16f, 0.16f, 0.18f),
+                Scale = 2.5f,
+                Roughness = 0.9f,
+            };
 
         /// <summary>Matte red die.</summary>
         public static StandardMaterial MatteRed() =>

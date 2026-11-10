@@ -42,7 +42,7 @@ public sealed class IlgpuSceneBufferTests
 
         try
         {
-            var kernel = accelerator.LoadAutoGroupedStreamKernel<Index1D, int, int, int, int, IlgpuCameraParams,
+            var kernel = accelerator.LoadAutoGroupedStreamKernel<Index1D, IlgpuTraceLaunch, IlgpuCameraParams,
                 ArrayView<Float3>, ArrayView<byte>, ArrayView<GpuTriangle>, ArrayView<GpuMaterial>, ArrayView<GpuLight>,
                 int, ArrayView<GpuBvhNode>, int, ArrayView<int>>(IlgpuPathTracerKernels.TracePixelKernel);
 

@@ -16,6 +16,7 @@ public static class MaterialCompiler
         GlassMaterial g => CompileGlass(g),
         SkinMaterial sk => CompileSkin(sk),
         EmissiveMaterial e => CompileEmissive(e),
+        CheckerMaterial ch => CompileChecker(ch),
         _ => throw new ArgumentException($"Unknown material type: {material.GetType().Name}", nameof(material)),
     };
 
@@ -46,5 +47,12 @@ public static class MaterialCompiler
     {
         var a = new Vector4(e.EmissionColor, e.EmissionStrength);
         return new GpuMaterial(MaterialModel.Emissive, a, default, default);
+    }
+
+    private static GpuMaterial CompileChecker(CheckerMaterial ch)
+    {
+        var a = new Vector4(ch.ColorA, ch.Roughness);
+        var b = new Vector4(ch.ColorB, ch.Scale <= 1e-4f ? 1f : ch.Scale);
+        return new GpuMaterial(MaterialModel.Checker, a, b, default);
     }
 }

@@ -54,7 +54,7 @@ public static class ShowcaseScenes
 
         var builder = new SceneBuilder();
         AddDioramaShell(builder, halfW, halfD, height, wallT);
-        AddCheckerFloor(builder, halfW, halfD, tiles: 6);
+        builder.AddGround(MaterialPresets.Showcase.CheckerFloor(), size: halfW * 2f);
         AddStudioProps(builder);
         builder.AddBox(
             new Vector3(0f, height - 0.02f, -0.05f),
@@ -90,26 +90,6 @@ public static class ShowcaseScenes
                 new Vector3(0f, height + wallT * 0.5f, 0f),
                 new Vector3(halfW + wallT, wallT * 0.5f, halfD + wallT),
                 plaster);
-    }
-
-    private static void AddCheckerFloor(SceneBuilder builder, float halfW, float halfD, int tiles)
-    {
-        var light = MaterialPresets.Showcase.CheckerLight();
-        var dark = MaterialPresets.Showcase.CheckerDark();
-        var tileW = (halfW * 2f) / tiles;
-        var tileD = (halfD * 2f) / tiles;
-        var halfTile = new Vector3(tileW * 0.5f - 0.001f, 0.012f, tileD * 0.5f - 0.001f);
-
-        for (var z = 0; z < tiles; z++)
-        {
-            for (var x = 0; x < tiles; x++)
-            {
-                var cx = -halfW + (x + 0.5f) * tileW;
-                var cz = -halfD + (z + 0.5f) * tileD;
-                var mat = ((x + z) & 1) == 0 ? light : dark;
-                builder.AddBox(new Vector3(cx, halfTile.Y, cz), halfTile, mat);
-            }
-        }
     }
 
     private static void AddStudioProps(SceneBuilder builder)

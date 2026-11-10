@@ -11,7 +11,9 @@ namespace Novolis.Rendering.Backends.Igpu;
 /// </summary>
 internal static class IlgpuPathTracerKernels
 {
-    private const int AbsoluteMaxDepth = 8;
+    private const int AbsoluteMaxDepth = 6;
+    /// <summary>Shadow BVH is the SM tax — NEE on camera hit + first bounce only.</summary>
+    private const int NeeMaxDepth = 2;
     private const float Epsilon = 1e-4f;
     private const int MaxLights = 16;
     private const int BvhStackCapacity = 64;
@@ -20,12 +22,13 @@ internal static class IlgpuPathTracerKernels
     private const float EnvStrength = 0.08f;
     private const float FireflyClamp = 4f;
 
+    /// <summary>
+    /// Traces <see cref="IlgpuTraceLaunch.SampleCount"/> samples for one pixel in a single launch
+    /// (avoids N kernel dispatches × sync tax per interactive batch).
+    /// </summary>
     public static void TracePixelKernel(
         Index1D index,
-        int width,
-        int height,
-        int sampleIndex,
-        int maxDepth,
+        IlgpuTraceLaunch launch,
         IlgpuCameraParams camera,
         ArrayView<Float3> accumulation,
         ArrayView<byte> displayRgba,
@@ -37,9 +40,66 @@ internal static class IlgpuPathTracerKernels
         int bvhRootIndex,
         ArrayView<int> triangleOrder)
     {
+        var width = launch.Width;
+        var height = launch.Height;
+        var startSampleIndex = launch.StartSampleIndex;
+        var sampleCount = launch.SampleCount < 1 ? 1 : launch.SampleCount;
+        var maxDepth = launch.MaxDepth;
+        if (maxDepth < 1)
+        {
+            maxDepth = 1;
+        }
+        else if (maxDepth > AbsoluteMaxDepth)
+        {
+            maxDepth = AbsoluteMaxDepth;
+        }
+
         var x = index % width;
         var y = index / width;
-        var rng = CreateRng(index, sampleIndex, width);
+        var sum = startSampleIndex == 0 ? Float3.Zero : accumulation[index];
+        for (var s = 0; s < sampleCount; s++)
+        {
+            var sampleIndex = startSampleIndex + s;
+            var radiance = TraceOneSample(
+                x,
+                y,
+                width,
+                height,
+                sampleIndex,
+                maxDepth,
+                camera,
+                triangles,
+                materials,
+                lights,
+                lightCount,
+                bvhNodes,
+                bvhRootIndex,
+                triangleOrder);
+            sum = sampleIndex == 0 ? radiance : Float3.Add(sum, radiance);
+        }
+
+        accumulation[index] = sum;
+        var totalSamples = startSampleIndex + sampleCount;
+        WriteRgba(displayRgba, index, Float3.Scale(sum, 1f / totalSamples));
+    }
+
+    private static Float3 TraceOneSample(
+        int x,
+        int y,
+        int width,
+        int height,
+        int sampleIndex,
+        int maxDepth,
+        IlgpuCameraParams camera,
+        ArrayView<GpuTriangle> triangles,
+        ArrayView<GpuMaterial> materials,
+        ArrayView<GpuLight> lights,
+        int lightCount,
+        ArrayView<GpuBvhNode> bvhNodes,
+        int bvhRootIndex,
+        ArrayView<int> triangleOrder)
+    {
+        var rng = CreateRng(new Index1D(x + y * width), sampleIndex, width);
         var jitterX = NextFloat(ref rng);
         var jitterY = NextFloat(ref rng);
         var u = (2f * (x + jitterX) / width - 1f) * camera.TanHalfFov * camera.Aspect;
@@ -49,14 +109,6 @@ internal static class IlgpuPathTracerKernels
         var direction = Float3.Normalize(Float3.Add(Float3.Add(camera.Forward, Float3.Scale(camera.Right, u)), Float3.Scale(camera.Up, v)));
         var throughput = Float3.One;
         var radiance = Float3.Zero;
-        if (maxDepth < 1)
-        {
-            maxDepth = 1;
-        }
-        else if (maxDepth > AbsoluteMaxDepth)
-        {
-            maxDepth = AbsoluteMaxDepth;
-        }
 
         for (var depth = 0; depth < maxDepth; depth++)
         {
@@ -117,11 +169,14 @@ internal static class IlgpuPathTracerKernels
             }
             else
             {
-                radiance = Float3.Add(
-                    radiance,
-                    Float3.Mul(
-                        throughput,
-                        DirectLighting(direction, hitPoint, hitNormal, mat, lights, lightCount, triangles, materials, bvhNodes, bvhRootIndex, triangleOrder)));
+                if (depth < NeeMaxDepth)
+                {
+                    radiance = Float3.Add(
+                        radiance,
+                        Float3.Mul(
+                            throughput,
+                            DirectLighting(hitPoint, hitNormal, mat, lights, lightCount, triangles, materials, bvhNodes, bvhRootIndex, triangleOrder, ref rng)));
+                }
 
                 // StandardMaterial packs emission in B.Y / C — Skin uses those lanes for SSS params.
                 if (mat.Model == MaterialModel.Standard && mat.B.Y > 1e-5f)
@@ -131,9 +186,11 @@ internal static class IlgpuPathTracerKernels
                         Float3.Mul(throughput, Float3.Scale(Float3.Create(mat.C.X, mat.C.Y, mat.C.Z), mat.B.Y)));
                 }
 
-                var baseColor = Float3.Create(mat.A.X, mat.A.Y, mat.A.Z);
+                var baseColor = ResolveBaseColor(mat, hitPoint);
                 var roughness = TracerMath.Max(mat.A.W, 0.04f);
-                var metallic = mat.Model == MaterialModel.Skin ? 0f : TracerMath.Clamp(mat.B.X, 0f, 1f);
+                var metallic = mat.Model == MaterialModel.Skin || mat.Model == MaterialModel.Checker
+                    ? 0f
+                    : TracerMath.Clamp(mat.B.X, 0f, 1f);
                 if (mat.Model == MaterialModel.Skin)
                 {
                     var subsurface = TracerMath.Clamp(mat.B.X, 0f, 1f);
@@ -161,10 +218,10 @@ internal static class IlgpuPathTracerKernels
                 break;
             }
 
-            // Russian roulette after enough bounces that NEE + first GI have landed.
-            if (depth >= 4)
+            // Russian roulette after first NEE + one GI bounce.
+            if (depth >= 2)
             {
-                var p = TracerMath.Min(Float3.MaxComponent(throughput), 0.95f);
+                var p = TracerMath.Min(Float3.MaxComponent(throughput), 0.9f);
                 if (NextFloat(ref rng) >= p)
                 {
                     break;
@@ -174,13 +231,23 @@ internal static class IlgpuPathTracerKernels
             }
         }
 
-        var invCount = 1f / (sampleIndex + 1);
-        // sampleIndex 0 replaces so interactive camera moves skip a full MemSet+Synchronize reset.
-        var blended = sampleIndex == 0
-            ? radiance
-            : Float3.Add(accumulation[index], radiance);
-        accumulation[index] = blended;
-        WriteRgba(displayRgba, index, Float3.Scale(blended, invCount));
+        return radiance;
+    }
+
+    private static Float3 ResolveBaseColor(GpuMaterial mat, Float3 hitPoint)
+    {
+        if (mat.Model != MaterialModel.Checker)
+        {
+            return Float3.Create(mat.A.X, mat.A.Y, mat.A.Z);
+        }
+
+        var scale = TracerMath.Max(mat.B.W, 1e-3f);
+        var ix = (int)TracerMath.Floor(hitPoint.X * scale);
+        var iz = (int)TracerMath.Floor(hitPoint.Z * scale);
+        var odd = ((ix + iz) & 1) != 0;
+        return odd
+            ? Float3.Create(mat.B.X, mat.B.Y, mat.B.Z)
+            : Float3.Create(mat.A.X, mat.A.Y, mat.A.Z);
     }
 
     private static float FresnelReflectance(Float3 inDir, Float3 normal, float iorA, float iorB)
@@ -214,7 +281,6 @@ internal static class IlgpuPathTracerKernels
     }
 
     private static Float3 DirectLighting(
-        Float3 incomingDirection,
         Float3 hitPoint,
         Float3 hitNormal,
         GpuMaterial mat,
@@ -224,50 +290,67 @@ internal static class IlgpuPathTracerKernels
         ArrayView<GpuMaterial> materials,
         ArrayView<GpuBvhNode> bvhNodes,
         int bvhRootIndex,
-        ArrayView<int> triangleOrder)
+        ArrayView<int> triangleOrder,
+        ref uint rng)
     {
-        var baseColor = Float3.Create(mat.A.X, mat.A.Y, mat.A.Z);
-        var roughness = TracerMath.Max(mat.A.W, 0.04f);
-        var metallic = mat.B.X;
-        var n = hitNormal;
-        var v = Float3.Normalize(Float3.Scale(incomingDirection, -1f));
-        var radiance = Float3.Zero;
-        var lightsToProcess = TracerMath.Min(lightCount, MaxLights);
-
-        for (var i = 0; i < lightsToProcess; i++)
+        var lightsToProcess = lightCount < MaxLights ? lightCount : MaxLights;
+        if (lightsToProcess <= 0)
         {
-            var light = lights[i];
-            var lightPos = Float3.Create(
-                light.DirectionOrPosition.X,
-                light.DirectionOrPosition.Y,
-                light.DirectionOrPosition.Z);
-            var lightDir = light.Kind == GpuLightKind.Directional
-                ? Float3.Normalize(Float3.Scale(lightPos, -1f))
-                : Float3.Normalize(Float3.Sub(lightPos, hitPoint));
-
-            var maxDist = light.Kind == GpuLightKind.Directional
-                ? 1e6f
-                : Float3.Length(Float3.Sub(lightPos, hitPoint));
-
-            if (!ShadowClear(hitPoint, hitNormal, lightDir, maxDist, triangles, materials, bvhNodes, bvhRootIndex, triangleOrder))
-            {
-                continue;
-            }
-
-            var ndotl = TracerMath.Max(0f, Float3.Dot(n, lightDir));
-            var diffuse = Float3.Scale(baseColor, (1f - metallic) * ndotl / Pi);
-            var f0 = Float3.Lerp(Float3.Create(0.04f, 0.04f, 0.04f), baseColor, metallic);
-            var spec = GgxSpec(n, v, lightDir, roughness, f0);
-            var lightColor = Float3.Create(light.Color.X, light.Color.Y, light.Color.Z);
-            var atten = light.Kind == GpuLightKind.Directional
-                ? light.Intensity
-                : light.Intensity / (maxDist * maxDist + 1e-3f);
-            radiance = Float3.Add(
-                radiance,
-                Float3.Mul(Float3.Add(diffuse, spec), Float3.Scale(lightColor, atten)));
+            return Float3.Zero;
         }
 
-        return radiance;
+        // Intensity-weighted single light (softbox dominates) — uniform pick wasted 75% of shadow rays.
+        var weightSum = 0f;
+        for (var i = 0; i < lightsToProcess; i++)
+        {
+            weightSum += TracerMath.Max(lights[i].Intensity, 1e-4f);
+        }
+
+        var pick = NextFloat(ref rng) * weightSum;
+        var lightIndex = lightsToProcess - 1;
+        var cumulative = 0f;
+        for (var i = 0; i < lightsToProcess; i++)
+        {
+            cumulative += TracerMath.Max(lights[i].Intensity, 1e-4f);
+            if (pick <= cumulative)
+            {
+                lightIndex = i;
+                break;
+            }
+        }
+
+        var light = lights[lightIndex];
+        var baseColor = ResolveBaseColor(mat, hitPoint);
+        var metallic = mat.Model == MaterialModel.Checker || mat.Model == MaterialModel.Skin
+            ? 0f
+            : TracerMath.Clamp(mat.B.X, 0f, 1f);
+        var n = hitNormal;
+        var lightPos = Float3.Create(
+            light.DirectionOrPosition.X,
+            light.DirectionOrPosition.Y,
+            light.DirectionOrPosition.Z);
+        var lightDir = light.Kind == GpuLightKind.Directional
+            ? Float3.Normalize(Float3.Scale(lightPos, -1f))
+            : Float3.Normalize(Float3.Sub(lightPos, hitPoint));
+
+        var maxDist = light.Kind == GpuLightKind.Directional
+            ? 1e6f
+            : Float3.Length(Float3.Sub(lightPos, hitPoint));
+
+        if (!ShadowClear(hitPoint, hitNormal, lightDir, maxDist, triangles, materials, bvhNodes, bvhRootIndex, triangleOrder))
+        {
+            return Float3.Zero;
+        }
+
+        var ndotl = TracerMath.Max(0f, Float3.Dot(n, lightDir));
+        // Lambert NEE only — GGX microfacet was extra ALU for little interactive gain.
+        var diffuse = Float3.Scale(baseColor, (1f - metallic) * ndotl / Pi);
+        var lightColor = Float3.Create(light.Color.X, light.Color.Y, light.Color.Z);
+        // pdf ∝ intensity → intensity cancels; scale by weightSum / r² (or 1 for directional).
+        var geometric = light.Kind == GpuLightKind.Directional
+            ? weightSum
+            : weightSum / (maxDist * maxDist + 1e-3f);
+        return Float3.Scale(Float3.Mul(diffuse, lightColor), geometric);
     }
 
     private static bool IntersectScene(
@@ -565,24 +648,6 @@ internal static class IlgpuPathTracerKernels
         }
 
         return true;
-    }
-
-    private static Float3 GgxSpec(Float3 n, Float3 v, Float3 l, float roughness, Float3 f0)
-    {
-        var h = Float3.Normalize(Float3.Add(v, l));
-        var ndoth = TracerMath.Max(0f, Float3.Dot(n, h));
-        var ndotl = TracerMath.Max(0f, Float3.Dot(n, l));
-        var ndotv = TracerMath.Max(0f, Float3.Dot(n, v));
-        if (ndotl <= 0f || ndotv <= 0f)
-        {
-            return Float3.Zero;
-        }
-
-        var a = roughness * roughness;
-        var a2 = a * a;
-        var denom = ndoth * ndoth * (a2 - 1f) + 1f;
-        var d = a2 / (Pi * denom * denom + 1e-7f);
-        return Float3.Scale(f0, d * ndotl);
     }
 
     private static Float3 CosineHemisphere(Float3 normal, ref uint rng)

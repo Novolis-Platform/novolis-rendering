@@ -10,7 +10,7 @@ namespace Novolis.Rendering.Backends.Cpu;
 /// </summary>
 internal static class PathTracerEngine
 {
-    private const int AbsoluteMaxDepth = 8;
+    private const int AbsoluteMaxDepth = 6;
     private const float Epsilon = 1e-4f;
     private const int TileSize = 32;
     private const float DisplayExposure = 1.1f;
@@ -111,7 +111,11 @@ internal static class PathTracerEngine
             }
             else
             {
-                radiance += throughput * DirectLighting(direction, in hit, scene, mat);
+                if (depth < 2)
+                {
+                    radiance += throughput * DirectLighting(in hit, scene, mat, ref rng);
+                }
+
                 if (mat.Model == MaterialModel.Standard && mat.B.Y > 1e-5f)
                 {
                     radiance += throughput * new Vector3(mat.C.X, mat.C.Y, mat.C.Z) * mat.B.Y;
@@ -123,9 +127,9 @@ internal static class PathTracerEngine
                 }
             }
 
-            if (depth >= 4)
+            if (depth >= 2)
             {
-                var p = MathF.Min(MathF.Max(throughput.X, MathF.Max(throughput.Y, throughput.Z)), 0.95f);
+                var p = MathF.Min(MathF.Max(throughput.X, MathF.Max(throughput.Y, throughput.Z)), 0.9f);
                 if (rng.NextDouble() >= p)
                 {
                     break;
@@ -146,9 +150,11 @@ internal static class PathTracerEngine
         GpuMaterial mat,
         ref Random rng)
     {
-        var baseColor = new Vector3(mat.A.X, mat.A.Y, mat.A.Z);
+        var baseColor = ResolveBaseColor(mat, hit.Point);
         var roughness = MathF.Max(mat.A.W, 0.04f);
-        var metallic = mat.Model == MaterialModel.Skin ? 0f : System.Math.Clamp(mat.B.X, 0f, 1f);
+        var metallic = mat.Model is MaterialModel.Skin or MaterialModel.Checker
+            ? 0f
+            : System.Math.Clamp(mat.B.X, 0f, 1f);
         if (mat.Model == MaterialModel.Skin)
         {
             var subsurface = System.Math.Clamp(mat.B.X, 0f, 1f);
@@ -259,59 +265,73 @@ internal static class PathTracerEngine
         return Vector3.Normalize(ratio * inDir + (ratio * cosIn - cosT) * normal);
     }
 
-    private static Vector3 DirectLighting(Vector3 incomingDirection, in Hit hit, CompiledScene scene, GpuMaterial mat)
+    private static Vector3 DirectLighting(in Hit hit, CompiledScene scene, GpuMaterial mat, ref Random rng)
     {
-        var baseColor = new Vector3(mat.A.X, mat.A.Y, mat.A.Z);
-        var roughness = MathF.Max(mat.A.W, 0.04f);
-        var metallic = mat.B.X;
-        var n = hit.Normal;
-        var v = Vector3.Normalize(-incomingDirection);
-        var radiance = Vector3.Zero;
-
-        foreach (var light in scene.Lights)
-        {
-            var lightDir = light.Kind == GpuLightKind.Directional
-                ? Vector3.Normalize(-light.DirectionOrPosition)
-                : Vector3.Normalize(light.DirectionOrPosition - hit.Point);
-
-            var maxDist = light.Kind == GpuLightKind.Directional
-                ? 1e6f
-                : (light.DirectionOrPosition - hit.Point).Length();
-
-            if (!ShadowRayClear(hit.Point, lightDir, scene, maxDist))
-            {
-                continue;
-            }
-
-            var ndotl = MathF.Max(0f, Vector3.Dot(n, lightDir));
-            var diffuse = baseColor * ((1f - metallic) * ndotl / MathF.PI);
-            var f0 = Vector3.Lerp(new Vector3(0.04f), baseColor, metallic);
-            var spec = GgxSpec(n, v, lightDir, roughness, f0);
-            var atten = light.Kind == GpuLightKind.Directional
-                ? light.Intensity
-                : light.Intensity / (maxDist * maxDist + 1e-3f);
-            radiance += (diffuse + spec) * light.Color * atten;
-        }
-
-        return radiance;
-    }
-
-    private static Vector3 GgxSpec(Vector3 n, Vector3 v, Vector3 l, float roughness, Vector3 f0)
-    {
-        var h = Vector3.Normalize(v + l);
-        var ndoth = MathF.Max(0f, Vector3.Dot(n, h));
-        var ndotl = MathF.Max(0f, Vector3.Dot(n, l));
-        var ndotv = MathF.Max(0f, Vector3.Dot(n, v));
-        if (ndotl <= 0f || ndotv <= 0f)
+        if (scene.Lights.Length == 0)
         {
             return Vector3.Zero;
         }
 
-        var a = roughness * roughness;
-        var a2 = a * a;
-        var denom = ndoth * ndoth * (a2 - 1f) + 1f;
-        var d = a2 / (MathF.PI * denom * denom + 1e-7f);
-        return f0 * d * ndotl;
+        var weightSum = 0f;
+        for (var i = 0; i < scene.Lights.Length; i++)
+        {
+            weightSum += MathF.Max(scene.Lights[i].Intensity, 1e-4f);
+        }
+
+        var pick = (float)rng.NextDouble() * weightSum;
+        var lightIndex = scene.Lights.Length - 1;
+        var cumulative = 0f;
+        for (var i = 0; i < scene.Lights.Length; i++)
+        {
+            cumulative += MathF.Max(scene.Lights[i].Intensity, 1e-4f);
+            if (pick <= cumulative)
+            {
+                lightIndex = i;
+                break;
+            }
+        }
+
+        var light = scene.Lights[lightIndex];
+        var baseColor = ResolveBaseColor(mat, hit.Point);
+        var metallic = mat.Model is MaterialModel.Checker or MaterialModel.Skin
+            ? 0f
+            : System.Math.Clamp(mat.B.X, 0f, 1f);
+        var n = hit.Normal;
+
+        var lightDir = light.Kind == GpuLightKind.Directional
+            ? Vector3.Normalize(-light.DirectionOrPosition)
+            : Vector3.Normalize(light.DirectionOrPosition - hit.Point);
+
+        var maxDist = light.Kind == GpuLightKind.Directional
+            ? 1e6f
+            : (light.DirectionOrPosition - hit.Point).Length();
+
+        if (!ShadowRayClear(hit.Point, lightDir, scene, maxDist))
+        {
+            return Vector3.Zero;
+        }
+
+        var ndotl = MathF.Max(0f, Vector3.Dot(n, lightDir));
+        var diffuse = baseColor * ((1f - metallic) * ndotl / MathF.PI);
+        var geometric = light.Kind == GpuLightKind.Directional
+            ? weightSum
+            : weightSum / (maxDist * maxDist + 1e-3f);
+        return diffuse * light.Color * geometric;
+    }
+
+    private static Vector3 ResolveBaseColor(GpuMaterial mat, Vector3 hitPoint)
+    {
+        if (mat.Model != MaterialModel.Checker)
+        {
+            return new Vector3(mat.A.X, mat.A.Y, mat.A.Z);
+        }
+
+        var scale = MathF.Max(mat.B.W, 1e-3f);
+        var ix = (int)MathF.Floor(hitPoint.X * scale);
+        var iz = (int)MathF.Floor(hitPoint.Z * scale);
+        return ((ix + iz) & 1) != 0
+            ? new Vector3(mat.B.X, mat.B.Y, mat.B.Z)
+            : new Vector3(mat.A.X, mat.A.Y, mat.A.Z);
     }
 
     private static Vector3 RandomDirection(ref Random rng)

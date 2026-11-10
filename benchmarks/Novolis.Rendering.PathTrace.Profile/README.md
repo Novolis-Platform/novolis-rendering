@@ -24,16 +24,15 @@ dotnet run -c Release --project d:\novolis\novolis-rendering\benchmarks\Novolis.
 
 ## Academic takeaway (RTX 4070)
 
-Interactive path tracing on raster hosts is almost always **present-bound**: one GPU→CPU readback (then GL upload) dominates. Kernel enqueue is ~0.02 ms; `exec+readback` is milliseconds.
+At **1 spp** interactive sizes, present cost is mostly **GPU→CPU readback**. At **16–32 spp** batches the ILGPU kernel dominates (`exec+readback` ≈ 100% kernel time).
 
-Wrong patterns that keep the card idle:
+Wrong patterns that keep the card idle *or* drowning:
 1. **Cancel/restart every UI frame** while orbiting → samples stuck at 1, SM thrash.
 2. **One sample + one readback** per pose → pays the DMA tax for almost no radiance work.
 3. **Accumulate-with-frozen-camera** for smoothness → stepped motion.
+4. **NEE every bounce × all lights × depth 6** → ~20 ms/spp @ 800×450 (kernel-bound mud).
 
-Right pattern: **coalesce camera**, finish a **multi-spp GPU batch**, **one readback**, then take the latest pending pose. Longer term: CUDA–GL interop removes the bounce.
-
-On an RTX 4070 @ interactive res, expect `exec+readback` ≈ 99% of present cost. Raise samples **inside** each batch before flushing — that is how you spend the 4070.
+Right pattern: **coalesce camera**, finish a **multi-spp GPU batch** (NEE on first hit, intensity-weighted light, depth ≤3), **one readback**. Interactive default is 640×360 (~170 spp/s on a 4070). Longer term: CUDA–GL interop removes the bounce.
 
 ## Quality diagnosis (muddy stills @ high spp)
 
