@@ -116,7 +116,7 @@ public static class MaterialPresets
 
         /// <summary>Mirror chrome slab.</summary>
         public static StandardMaterial Mirror() =>
-            Metal(Colors.Silver, roughness: 0.03f);
+            Metal(Colors.Silver, roughness: 0f);
 
         /// <summary>Copper block.</summary>
         public static StandardMaterial Copper() =>
@@ -128,11 +128,11 @@ public static class MaterialPresets
 
         /// <summary>Clear glass cube.</summary>
         public static GlassMaterial ClearGlass() =>
-            Glass(tint: new Vector3(0.92f, 0.96f, 1f), roughness: 0.01f, ior: 1.5f, absorption: 0.15f);
+            Glass(tint: new Vector3(0.95f, 0.97f, 1f), roughness: 0f, ior: 1.5f, absorption: 0.05f);
 
         /// <summary>Green tinted glass.</summary>
         public static GlassMaterial GreenGlass() =>
-            Glass(tint: new Vector3(0.45f, 0.85f, 0.55f), roughness: 0.04f, ior: 1.45f, absorption: 0.55f);
+            Glass(tint: new Vector3(0.55f, 0.9f, 0.6f), roughness: 0f, ior: 1.45f, absorption: 0.2f);
 
         /// <summary>Flesh / skin SSS stand-in.</summary>
         public static SkinMaterial Flesh() =>
@@ -140,7 +140,7 @@ public static class MaterialPresets
 
         /// <summary>Ceiling softbox panel.</summary>
         public static EmissiveMaterial Softbox() =>
-            Emissive(Colors.Softbox, strength: 5f);
+            Emissive(Colors.Softbox, strength: 8f);
 
         /// <summary>Cyan lightsaber blade.</summary>
         public static EmissiveMaterial LightsaberCyan() =>

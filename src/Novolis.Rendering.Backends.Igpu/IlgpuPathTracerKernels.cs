@@ -19,7 +19,7 @@ internal static class IlgpuPathTracerKernels
     private const int BvhStackCapacity = 64;
     private const float DisplayExposure = 1.25f;
     private const float Pi = 3.14159265f;
-    private const float EnvStrength = 0.04f;
+    private const float EnvStrength = 0.12f;
     private const float FireflyClamp = 6f;
 
     /// <summary>
@@ -120,80 +120,35 @@ internal static class IlgpuPathTracerKernels
             }
 
             var mat = materials[hitMat];
+            var frontFace = Float3.Dot(direction, hitNormal) < 0f;
+            var shadingNormal = frontFace ? hitNormal : Float3.Scale(hitNormal, -1f);
+
             if (mat.Model == MaterialModel.Emissive)
             {
-                // NEE owns illumination; only credit directly visible emitters (avoids softbox double-count mud).
-                if (depth == 0)
-                {
-                    radiance = Float3.Add(
-                        radiance,
-                        Float3.Mul(throughput, Float3.Scale(Float3.Create(mat.A.X, mat.A.Y, mat.A.Z), mat.A.W)));
-                }
-
+                // Specular paths (mirror/glass) must see emitters on bounce; diffuse uses NEE primarily.
+                radiance = Float3.Add(
+                    radiance,
+                    Float3.Mul(throughput, Float3.Scale(Float3.Create(mat.A.X, mat.A.Y, mat.A.Z), mat.A.W * 0.5f)));
                 break;
             }
 
             if (mat.Model == MaterialModel.Glass)
             {
-                var tint = Float3.Create(mat.A.X, mat.A.Y, mat.A.Z);
-                var roughness = TracerMath.Clamp(mat.A.W, 0f, 1f);
-                var ior = TracerMath.Max(mat.B.X, 1.01f);
-                var absorption = TracerMath.Max(mat.B.Y, 0f);
-                var n = hitNormal;
-                var entering = Float3.Dot(direction, n) < 0f;
-                if (!entering)
-                {
-                    n = Float3.Scale(n, -1f);
-                    // Cheap Beer–Lambert stand-in (avoid MathF.Exp — CUDA ILGPU ICE).
-                    if (absorption > 1e-5f)
-                    {
-                        var atten = TracerMath.Max(0f, 1f - hitDist * absorption);
-                        throughput = Float3.Mul(throughput, Float3.Scale(tint, atten));
-                    }
-                }
-
-                var iorA = entering ? 1f : ior;
-                var iorB = entering ? ior : 1f;
-                var reflectWeight = FresnelReflectance(direction, n, iorA, iorB);
-                var reflectDir = Float3.Normalize(Float3.Reflect(direction, n));
-                var refractDir = Refract(direction, n, iorA, iorB);
-                var hasRefract = Float3.LengthSquared(refractDir) > 1e-8f;
-                var diffuseDir = CosineHemisphere(n, ref rng);
-                reflectDir = Float3.Normalize(Float3.Lerp(diffuseDir, reflectDir, 1f - roughness * 0.85f));
-                if (hasRefract)
-                {
-                    refractDir = Float3.Normalize(Float3.Lerp(Float3.Scale(diffuseDir, -1f), refractDir, 1f - roughness));
-                }
-
-                var followReflection = !hasRefract || NextFloat(ref rng) <= reflectWeight;
-                direction = followReflection ? reflectDir : refractDir;
-                origin = Float3.Add(hitPoint, Float3.Scale(n, Epsilon * (followReflection ? 1f : -1f)));
-                if (!followReflection)
-                {
-                    throughput = Float3.Mul(throughput, tint);
-                }
+                ScatterGlass(
+                    ref origin,
+                    ref direction,
+                    ref throughput,
+                    hitPoint,
+                    hitNormal,
+                    frontFace,
+                    hitDist,
+                    mat,
+                    ref rng);
             }
             else
             {
-                if (depth < NeeMaxDepth)
-                {
-                    radiance = Float3.Add(
-                        radiance,
-                        Float3.Mul(
-                            throughput,
-                            DirectLighting(hitPoint, hitNormal, mat, lights, lightCount, triangles, materials, bvhNodes, bvhRootIndex, triangleOrder, ref rng)));
-                }
-
-                // StandardMaterial packs emission in B.Y / C — Skin uses those lanes for SSS params.
-                if (mat.Model == MaterialModel.Standard && mat.B.Y > 1e-5f)
-                {
-                    radiance = Float3.Add(
-                        radiance,
-                        Float3.Mul(throughput, Float3.Scale(Float3.Create(mat.C.X, mat.C.Y, mat.C.Z), mat.B.Y)));
-                }
-
                 var baseColor = ResolveBaseColor(mat, hitPoint);
-                var roughness = TracerMath.Max(mat.A.W, 0.04f);
+                var roughness = TracerMath.Clamp(mat.A.W, 0f, 1f);
                 var metallic = mat.Model == MaterialModel.Skin || mat.Model == MaterialModel.Checker
                     ? 0f
                     : TracerMath.Clamp(mat.B.X, 0f, 1f);
@@ -204,19 +159,33 @@ internal static class IlgpuPathTracerKernels
                     baseColor = Float3.Lerp(baseColor, blood, subsurface * 0.35f);
                 }
 
-                var smoothness = 1f - roughness;
-                var specularProbability = TracerMath.Clamp(metallic * 0.85f + 0.05f, 0.05f, 1f);
-                var isSpecular = NextFloat(ref rng) < specularProbability;
-                var diffuseDir = CosineHemisphere(hitNormal, ref rng);
-                var specularDir = Float3.Normalize(Float3.Reflect(direction, hitNormal));
-                direction = isSpecular
-                    ? Float3.Normalize(Float3.Lerp(diffuseDir, specularDir, smoothness))
-                    : diffuseDir;
-                origin = Float3.Add(hitPoint, Float3.Scale(hitNormal, Epsilon));
-                var surface = isSpecular
-                    ? Float3.Lerp(Float3.Create(0.04f, 0.04f, 0.04f), baseColor, metallic)
-                    : Float3.Scale(baseColor, 1f - metallic * 0.85f);
-                throughput = Float3.Mul(throughput, surface);
+                // NEE for dielectrics only — mirrors/metals find lights via specular bounce.
+                if (depth < NeeMaxDepth && metallic < 0.5f)
+                {
+                    radiance = Float3.Add(
+                        radiance,
+                        Float3.Mul(
+                            throughput,
+                            DirectLighting(hitPoint, shadingNormal, mat, lights, lightCount, triangles, materials, bvhNodes, bvhRootIndex, triangleOrder, ref rng)));
+                }
+
+                if (mat.Model == MaterialModel.Standard && mat.B.Y > 1e-5f)
+                {
+                    radiance = Float3.Add(
+                        radiance,
+                        Float3.Mul(throughput, Float3.Scale(Float3.Create(mat.C.X, mat.C.Y, mat.C.Z), mat.B.Y)));
+                }
+
+                ScatterOpaque(
+                    ref origin,
+                    ref direction,
+                    ref throughput,
+                    hitPoint,
+                    shadingNormal,
+                    baseColor,
+                    roughness,
+                    metallic,
+                    ref rng);
             }
 
             if (Float3.MaxComponent(throughput) <= 1e-5f)
@@ -224,10 +193,11 @@ internal static class IlgpuPathTracerKernels
                 break;
             }
 
-            // Russian roulette after first NEE + one GI bounce.
-            if (depth >= 2)
+            // Keep specular/glass paths alive longer; dielectrics RR earlier.
+            var rrDepth = mat.Model == MaterialModel.Glass ? 4 : 3;
+            if (depth >= rrDepth)
             {
-                var p = TracerMath.Min(Float3.MaxComponent(throughput), 0.9f);
+                var p = TracerMath.Min(Float3.MaxComponent(throughput), 0.95f);
                 if (NextFloat(ref rng) >= p)
                 {
                     break;
@@ -238,6 +208,106 @@ internal static class IlgpuPathTracerKernels
         }
 
         return radiance;
+    }
+
+    private static void ScatterOpaque(
+        ref Float3 origin,
+        ref Float3 direction,
+        ref Float3 throughput,
+        Float3 hitPoint,
+        Float3 hitNormal,
+        Float3 baseColor,
+        float roughness,
+        float metallic,
+        ref uint rng)
+    {
+        var specularDir = Float3.Normalize(Float3.Reflect(direction, hitNormal));
+        if (metallic >= 0.9f)
+        {
+            // Conductor: always reflect. Sharp mirrors stay sharp; roughness only cones.
+            if (roughness <= 0.05f)
+            {
+                direction = specularDir;
+            }
+            else
+            {
+                var fuzzy = CosineHemisphere(hitNormal, ref rng);
+                var t = (1f - roughness) * (1f - roughness);
+                direction = Float3.Normalize(Float3.Lerp(fuzzy, specularDir, t));
+            }
+
+            throughput = Float3.Mul(throughput, baseColor);
+        }
+        else
+        {
+            var specularProbability = TracerMath.Clamp(0.04f + (1f - roughness) * 0.25f, 0.04f, 0.35f);
+            var isSpecular = NextFloat(ref rng) < specularProbability;
+            var diffuseDir = CosineHemisphere(hitNormal, ref rng);
+            if (isSpecular)
+            {
+                var t = (1f - roughness) * (1f - roughness);
+                direction = Float3.Normalize(Float3.Lerp(diffuseDir, specularDir, t));
+                throughput = Float3.Mul(throughput, Float3.Create(0.04f, 0.04f, 0.04f));
+            }
+            else
+            {
+                direction = diffuseDir;
+                throughput = Float3.Mul(throughput, baseColor);
+            }
+        }
+
+        origin = Float3.Add(hitPoint, Float3.Scale(hitNormal, Epsilon));
+    }
+
+    private static void ScatterGlass(
+        ref Float3 origin,
+        ref Float3 direction,
+        ref Float3 throughput,
+        Float3 hitPoint,
+        Float3 geometricNormal,
+        bool frontFace,
+        float hitDist,
+        GpuMaterial mat,
+        ref uint rng)
+    {
+        var tint = Float3.Create(mat.A.X, mat.A.Y, mat.A.Z);
+        var roughness = TracerMath.Clamp(mat.A.W, 0f, 1f);
+        var ior = TracerMath.Max(mat.B.X, 1.01f);
+        var absorption = TracerMath.Max(mat.B.Y, 0f);
+        var n = frontFace ? geometricNormal : Float3.Scale(geometricNormal, -1f);
+        if (!frontFace && absorption > 1e-5f)
+        {
+            // Cheap Beer–Lambert stand-in (avoid MathF.Exp — CUDA ILGPU ICE).
+            var atten = TracerMath.Max(0.2f, 1f - hitDist * absorption * 0.25f);
+            throughput = Float3.Mul(throughput, Float3.Scale(tint, atten));
+        }
+
+        var iorA = frontFace ? 1f : ior;
+        var iorB = frontFace ? ior : 1f;
+        var reflectWeight = FresnelReflectance(direction, n, iorA, iorB);
+        var reflectDir = Float3.Normalize(Float3.Reflect(direction, n));
+        var refractDir = Refract(direction, n, iorA, iorB);
+        var hasRefract = Float3.LengthSquared(refractDir) > 1e-8f;
+
+        // Clear glass: do not lerp with a diffuse lobe (that made cubes look like frosted charcoal).
+        if (roughness > 0.05f)
+        {
+            var diffuseDir = CosineHemisphere(n, ref rng);
+            var blur = roughness * roughness;
+            reflectDir = Float3.Normalize(Float3.Lerp(reflectDir, diffuseDir, blur));
+            if (hasRefract)
+            {
+                refractDir = Float3.Normalize(Float3.Lerp(refractDir, Float3.Scale(diffuseDir, -1f), blur));
+            }
+        }
+
+        var followReflection = !hasRefract || NextFloat(ref rng) <= reflectWeight;
+        direction = followReflection ? reflectDir : refractDir;
+        origin = Float3.Add(hitPoint, Float3.Scale(n, Epsilon * (followReflection ? 1f : -1f)));
+        if (!followReflection && frontFace)
+        {
+            throughput = Float3.Mul(throughput, tint);
+        }
     }
 
     private static Float3 ResolveBaseColor(GpuMaterial mat, Float3 hitPoint)
@@ -612,12 +682,8 @@ internal static class IlgpuPathTracerKernels
             return false;
         }
 
+        // Geometric normal (not forced to face the ray) — glass needs front-face for IOR.
         normal = Float3.Normalize(Float3.Cross(edge1, edge2));
-        if (Float3.Dot(normal, direction) > 0f)
-        {
-            normal = Float3.Scale(normal, -1f);
-        }
-
         return true;
     }
 

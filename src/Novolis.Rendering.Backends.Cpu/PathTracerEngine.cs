@@ -14,7 +14,7 @@ internal static class PathTracerEngine
     private const float Epsilon = 1e-4f;
     private const int TileSize = 32;
     private const float DisplayExposure = 1.25f;
-    private const float EnvStrength = 0.04f;
+    private const float EnvStrength = 0.12f;
     private const float FireflyClamp = 6f;
 
     public static void RenderSample(
@@ -98,26 +98,29 @@ internal static class PathTracerEngine
             var mat = scene.Materials[hit.MaterialIndex];
             if (mat.Model == MaterialModel.Emissive)
             {
-                if (depth == 0)
-                {
-                    radiance += throughput * new Vector3(mat.A.X, mat.A.Y, mat.A.Z) * mat.A.W;
-                }
-
+                radiance += throughput * new Vector3(mat.A.X, mat.A.Y, mat.A.Z) * (mat.A.W * 0.35f);
                 break;
             }
 
+            var frontFace = Vector3.Dot(direction, hit.Normal) < 0f;
+            var shadingNormal = frontFace ? hit.Normal : -hit.Normal;
+            var shadedHit = hit with { Normal = shadingNormal };
+
             if (mat.Model == MaterialModel.Glass)
             {
-                if (!ScatterGlass(ref origin, ref direction, ref throughput, in hit, mat, ref rng))
+                if (!ScatterGlass(ref origin, ref direction, ref throughput, in hit, frontFace, mat, ref rng))
                 {
                     break;
                 }
             }
             else
             {
-                if (depth < 3)
+                var metallic = mat.Model is MaterialModel.Skin or MaterialModel.Checker
+                    ? 0f
+                    : System.Math.Clamp(mat.B.X, 0f, 1f);
+                if (depth < 3 && metallic < 0.5f)
                 {
-                    radiance += throughput * DirectLighting(in hit, scene, mat, ref rng);
+                    radiance += throughput * DirectLighting(in shadedHit, scene, mat, ref rng);
                 }
 
                 if (mat.Model == MaterialModel.Standard && mat.B.Y > 1e-5f)
@@ -125,15 +128,16 @@ internal static class PathTracerEngine
                     radiance += throughput * new Vector3(mat.C.X, mat.C.Y, mat.C.Z) * mat.B.Y;
                 }
 
-                if (!ScatterStandard(ref origin, ref direction, ref throughput, in hit, mat, ref rng))
+                if (!ScatterStandard(ref origin, ref direction, ref throughput, in shadedHit, mat, ref rng))
                 {
                     break;
                 }
             }
 
-            if (depth >= 2)
+            var rrDepth = mat.Model == MaterialModel.Glass ? 4 : 3;
+            if (depth >= rrDepth)
             {
-                var p = MathF.Min(MathF.Max(throughput.X, MathF.Max(throughput.Y, throughput.Z)), 0.9f);
+                var p = MathF.Min(MathF.Max(throughput.X, MathF.Max(throughput.Y, throughput.Z)), 0.95f);
                 if (rng.NextDouble() >= p)
                 {
                     break;
@@ -155,7 +159,7 @@ internal static class PathTracerEngine
         ref Random rng)
     {
         var baseColor = ResolveBaseColor(mat, hit.Point);
-        var roughness = MathF.Max(mat.A.W, 0.04f);
+        var roughness = System.Math.Clamp(mat.A.W, 0f, 1f);
         var metallic = mat.Model is MaterialModel.Skin or MaterialModel.Checker
             ? 0f
             : System.Math.Clamp(mat.B.X, 0f, 1f);
@@ -166,27 +170,47 @@ internal static class PathTracerEngine
             baseColor = Vector3.Lerp(baseColor, blood, subsurface * 0.35f);
         }
 
-        var smoothness = 1f - roughness;
-        var specularProbability = System.Math.Clamp(metallic * 0.85f + 0.05f, 0.05f, 1f);
         var n = hit.Normal;
-
-        var isSpecular = rng.NextDouble() < specularProbability;
-        var diffuseDir = Vector3.Normalize(n + RandomDirection(ref rng));
-        if (Vector3.Dot(diffuseDir, n) <= 0f)
+        var specularDir = Vector3.Normalize(Vector3.Reflect(direction, n));
+        if (metallic >= 0.9f)
         {
-            diffuseDir = Vector3.Normalize(n + RandomDirection(ref rng) * 0.5f);
+            if (roughness <= 0.05f)
+            {
+                direction = specularDir;
+            }
+            else
+            {
+                var fuzzy = Vector3.Normalize(n + RandomDirection(ref rng));
+                var t = (1f - roughness) * (1f - roughness);
+                direction = Vector3.Normalize(Vector3.Lerp(fuzzy, specularDir, t));
+            }
+
+            throughput *= baseColor;
+        }
+        else
+        {
+            var specularProbability = System.Math.Clamp(0.04f + (1f - roughness) * 0.25f, 0.04f, 0.35f);
+            var isSpecular = rng.NextDouble() < specularProbability;
+            var diffuseDir = Vector3.Normalize(n + RandomDirection(ref rng));
+            if (Vector3.Dot(diffuseDir, n) <= 0f)
+            {
+                diffuseDir = n;
+            }
+
+            if (isSpecular)
+            {
+                var t = (1f - roughness) * (1f - roughness);
+                direction = Vector3.Normalize(Vector3.Lerp(diffuseDir, specularDir, t));
+                throughput *= new Vector3(0.04f);
+            }
+            else
+            {
+                direction = diffuseDir;
+                throughput *= baseColor;
+            }
         }
 
-        var specularDir = Vector3.Normalize(Vector3.Reflect(direction, n));
-        direction = isSpecular
-            ? Vector3.Normalize(Vector3.Lerp(diffuseDir, specularDir, smoothness))
-            : diffuseDir;
         origin = hit.Point + n * Epsilon;
-
-        var surface = isSpecular
-            ? Vector3.Lerp(new Vector3(0.04f), baseColor, metallic)
-            : baseColor * (1f - metallic * 0.85f);
-        throughput *= surface;
         return throughput.X + throughput.Y + throughput.Z > 1e-5f;
     }
 
@@ -195,6 +219,7 @@ internal static class PathTracerEngine
         ref Vector3 direction,
         ref Vector3 throughput,
         in Hit hit,
+        bool frontFace,
         GpuMaterial mat,
         ref Random rng)
     {
@@ -202,36 +227,35 @@ internal static class PathTracerEngine
         var roughness = System.Math.Clamp(mat.A.W, 0f, 1f);
         var ior = MathF.Max(mat.B.X, 1.01f);
         var absorption = MathF.Max(mat.B.Y, 0f);
-        var n = hit.Normal;
-        var entering = Vector3.Dot(direction, n) < 0f;
-        if (!entering)
+        var n = frontFace ? hit.Normal : -hit.Normal;
+        if (!frontFace && absorption > 1e-5f)
         {
-            n = -n;
-            if (absorption > 1e-5f)
-            {
-                var atten = MathF.Exp(-hit.Distance * absorption);
-                throughput *= tint * atten;
-            }
+            var atten = MathF.Max(0.2f, 1f - hit.Distance * absorption * 0.25f);
+            throughput *= tint * atten;
         }
 
-        var iorA = entering ? 1f : ior;
-        var iorB = entering ? ior : 1f;
+        var iorA = frontFace ? 1f : ior;
+        var iorB = frontFace ? ior : 1f;
         var reflectWeight = FresnelReflectance(direction, n, iorA, iorB);
         var reflectDir = Vector3.Normalize(Vector3.Reflect(direction, n));
         var refractDir = Refract(direction, n, iorA, iorB);
         var hasRefract = refractDir.LengthSquared() > 1e-8f;
 
-        var diffuseDir = Vector3.Normalize(n + RandomDirection(ref rng));
-        reflectDir = Vector3.Normalize(Vector3.Lerp(diffuseDir, reflectDir, 1f - roughness * 0.85f));
-        if (hasRefract)
+        if (roughness > 0.05f)
         {
-            refractDir = Vector3.Normalize(Vector3.Lerp(-diffuseDir, refractDir, 1f - roughness));
+            var diffuseDir = Vector3.Normalize(n + RandomDirection(ref rng));
+            var blur = roughness * roughness;
+            reflectDir = Vector3.Normalize(Vector3.Lerp(reflectDir, diffuseDir, blur));
+            if (hasRefract)
+            {
+                refractDir = Vector3.Normalize(Vector3.Lerp(refractDir, -diffuseDir, blur));
+            }
         }
 
         var followReflection = !hasRefract || rng.NextDouble() <= reflectWeight;
         direction = followReflection ? reflectDir : refractDir;
         origin = hit.Point + n * Epsilon * (followReflection ? 1f : -1f);
-        if (!followReflection)
+        if (!followReflection && frontFace)
         {
             throughput *= tint;
         }
@@ -454,7 +478,40 @@ internal static class PathTracerEngine
         var v0 = new Vector3(tri.A.X, tri.A.Y, tri.A.Z);
         var v1 = new Vector3(tri.B.X, tri.B.Y, tri.B.Z);
         var v2 = new Vector3(tri.C.X, tri.C.Y, tri.C.Z);
-        return TriangleRay.TryHit(in ray, v0, v1, v2, maxT, out t, out normal);
+        // Geometric normal (no face-ray flip) — glass IOR needs a stable front-face test.
+        return TryHitGeometric(in ray, v0, v1, v2, maxT, out t, out normal);
+    }
+
+    private static bool TryHitGeometric(in Ray ray, Vector3 v0, Vector3 v1, Vector3 v2, float maxT, out float t, out Vector3 normal)
+    {
+        t = 0f;
+        var e1 = v1 - v0;
+        var e2 = v2 - v0;
+        normal = Vector3.Normalize(Vector3.Cross(e1, e2));
+        var h = Vector3.Cross(ray.Direction, e2);
+        var a = Vector3.Dot(e1, h);
+        if (MathF.Abs(a) < 1e-8f)
+        {
+            return false;
+        }
+
+        var f = 1f / a;
+        var s = ray.Origin - v0;
+        var u = f * Vector3.Dot(s, h);
+        if (u is < 0f or > 1f)
+        {
+            return false;
+        }
+
+        var q = Vector3.Cross(s, e1);
+        var v = f * Vector3.Dot(ray.Direction, q);
+        if (v < 0f || u + v > 1f)
+        {
+            return false;
+        }
+
+        t = f * Vector3.Dot(e2, q);
+        return t > Epsilon && t <= maxT;
     }
 
     private static bool IntersectBruteForce(in Ray ray, CompiledScene scene, out Hit hit, float maxDistance)
@@ -468,7 +525,7 @@ internal static class PathTracerEngine
             var v0 = new Vector3(tri.A.X, tri.A.Y, tri.A.Z);
             var v1 = new Vector3(tri.B.X, tri.B.Y, tri.B.Z);
             var v2 = new Vector3(tri.C.X, tri.C.Y, tri.C.Z);
-            if (!TriangleRay.TryHit(in ray, v0, v1, v2, bestT, out var t, out var n))
+            if (!TryHitGeometric(in ray, v0, v1, v2, bestT, out var t, out var n))
             {
                 continue;
             }
