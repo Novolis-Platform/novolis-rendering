@@ -22,8 +22,8 @@ public static class SceneCompiler
     /// </summary>
     // Softbox area→point: high enough for clean NEE, low enough to avoid firefly blowouts.
     private const float EmissivePointLightScale = 0.2f;
-    /// <summary>Drop tiny accent proxies; keep softbox (+ neon if close in power).</summary>
-    private const float NeeIntensityFloorFraction = 0.08f;
+    /// <summary>Keep the dominant softbox; neon sticks are high-variance NEE and stay BSDF-only.</summary>
+    private const float NeeIntensityFloorFraction = 0.35f;
 
     /// <summary>Compiles meshes, materials, lights, and a BVH into a <see cref="CompiledScene"/>.</summary>
     /// <param name="scene">Authoring scene graph.</param>

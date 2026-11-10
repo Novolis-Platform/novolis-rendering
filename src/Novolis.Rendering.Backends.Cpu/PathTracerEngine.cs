@@ -15,7 +15,7 @@ internal static class PathTracerEngine
     private const int TileSize = 32;
     private const float DisplayExposure = 1.25f;
     private const float EnvStrength = 0.12f;
-    private const float FireflyClamp = 6f;
+    private const float FireflyClamp = 4f;
 
     public static void RenderSample(
         Vector3[] accumulation,
@@ -300,26 +300,38 @@ internal static class PathTracerEngine
             return Vector3.Zero;
         }
 
-        var weightSum = 0f;
-        for (var i = 0; i < scene.Lights.Length; i++)
+        var lightIndex = 0;
+        var bestPower = LightPower(scene.Lights[0]);
+        for (var i = 1; i < scene.Lights.Length; i++)
         {
-            weightSum += MathF.Max(LightPower(scene.Lights[i]), 1e-4f);
-        }
-
-        var pick = (float)rng.NextDouble() * weightSum;
-        var lightIndex = scene.Lights.Length - 1;
-        var cumulative = 0f;
-        for (var i = 0; i < scene.Lights.Length; i++)
-        {
-            cumulative += MathF.Max(LightPower(scene.Lights[i]), 1e-4f);
-            if (pick <= cumulative)
+            var power = LightPower(scene.Lights[i]);
+            if (power > bestPower)
             {
+                bestPower = power;
                 lightIndex = i;
-                break;
             }
         }
 
         var light = scene.Lights[lightIndex];
+        var samples = light.Kind == GpuLightKind.Rect ? 2 : 1;
+        var sum = Vector3.Zero;
+        for (var s = 0; s < samples; s++)
+        {
+            sum += EvaluateLightSample(in hit, scene, mat, light, s, samples, ref rng);
+        }
+
+        return sum / samples;
+    }
+
+    private static Vector3 EvaluateLightSample(
+        in Hit hit,
+        CompiledScene scene,
+        GpuMaterial mat,
+        GpuLight light,
+        int sampleOrdinal,
+        int sampleCount,
+        ref Random rng)
+    {
         var baseColor = ResolveBaseColor(mat, hit.Point);
         var metallic = mat.Model is MaterialModel.Checker or MaterialModel.Skin
             ? 0f
@@ -333,11 +345,11 @@ internal static class PathTracerEngine
         {
             lightDir = Vector3.Normalize(-light.DirectionOrPosition);
             maxDist = 1e6f;
-            geometric = weightSum;
+            geometric = light.Intensity;
         }
         else if (light.Kind == GpuLightKind.Rect)
         {
-            var su = (float)rng.NextDouble() * 2f - 1f;
+            var su = ((sampleOrdinal + (float)rng.NextDouble()) / sampleCount) * 2f - 1f;
             var sv = (float)rng.NextDouble() * 2f - 1f;
             var lightPos = light.DirectionOrPosition + light.U * su + light.V * sv;
             var toLight = lightPos - hit.Point;
@@ -356,18 +368,16 @@ internal static class PathTracerEngine
             }
 
             var rectArea = 4f * light.U.Length() * light.V.Length();
-            var power = MathF.Max(LightPower(light), 1e-4f);
             var distSq = MathF.Max(maxDist * maxDist, 0.04f);
-            geometric = (weightSum / power) * light.Intensity * cosLight * rectArea / distSq;
+            geometric = light.Intensity * cosLight * rectArea / distSq;
         }
         else
         {
             var toLight = light.DirectionOrPosition - hit.Point;
             maxDist = toLight.Length();
             lightDir = maxDist > 1e-4f ? toLight / maxDist : Vector3.UnitY;
-            var power = MathF.Max(LightPower(light), 1e-4f);
             var distSq = MathF.Max(maxDist * maxDist, 0.04f);
-            geometric = (weightSum / power) * light.Intensity / distSq;
+            geometric = light.Intensity / distSq;
         }
 
         if (!ShadowRayClear(hit.Point, lightDir, scene, maxDist))

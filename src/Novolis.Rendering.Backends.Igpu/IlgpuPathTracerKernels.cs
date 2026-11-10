@@ -20,7 +20,9 @@ internal static class IlgpuPathTracerKernels
     private const float DisplayExposure = 1.25f;
     private const float Pi = 3.14159265f;
     private const float EnvStrength = 0.12f;
-    private const float FireflyClamp = 6f;
+    private const float FireflyClamp = 4f;
+    private const int RectNeeSamples = 2;
+    private const int PixelStrata = 4;
 
     /// <summary>
     /// Traces <see cref="IlgpuTraceLaunch.SampleCount"/> samples for one pixel in a single launch
@@ -101,8 +103,11 @@ internal static class IlgpuPathTracerKernels
         ArrayView<int> triangleOrder)
     {
         var rng = CreateRng(new Index1D(x + y * width), sampleIndex, width);
-        var jitterX = NextFloat(ref rng);
-        var jitterY = NextFloat(ref rng);
+        // Stratified pixel jitter — cuts aliasing/grain vs pure random at low spp.
+        var strata = PixelStrata;
+        var cell = sampleIndex % (strata * strata);
+        var jitterX = ((cell % strata) + NextFloat(ref rng)) / strata;
+        var jitterY = ((cell / strata) + NextFloat(ref rng)) / strata;
         var u = (2f * (x + jitterX) / width - 1f) * camera.TanHalfFov * camera.Aspect;
         // Row 0 is the top of the framebuffer (matches CPU tracer + Silk blit UVs).
         var v = (1f - 2f * (y + jitterY) / height) * camera.TanHalfFov;
@@ -375,27 +380,58 @@ internal static class IlgpuPathTracerKernels
             return Float3.Zero;
         }
 
-        // Power-weighted single light — rect softbox usually wins.
-        var weightSum = 0f;
-        for (var i = 0; i < lightsToProcess; i++)
+        // Always the brightest light (softbox) — stochastic light pick was free variance.
+        var lightIndex = 0;
+        var bestPower = LightPower(lights[0]);
+        for (var i = 1; i < lightsToProcess; i++)
         {
-            weightSum += TracerMath.Max(LightPower(lights[i]), 1e-4f);
-        }
-
-        var pick = NextFloat(ref rng) * weightSum;
-        var lightIndex = lightsToProcess - 1;
-        var cumulative = 0f;
-        for (var i = 0; i < lightsToProcess; i++)
-        {
-            cumulative += TracerMath.Max(LightPower(lights[i]), 1e-4f);
-            if (pick <= cumulative)
+            var power = LightPower(lights[i]);
+            if (power > bestPower)
             {
+                bestPower = power;
                 lightIndex = i;
-                break;
             }
         }
 
         var light = lights[lightIndex];
+        var samples = light.Kind == GpuLightKind.Rect ? RectNeeSamples : 1;
+        var sum = Float3.Zero;
+        for (var s = 0; s < samples; s++)
+        {
+            sum = Float3.Add(
+                sum,
+                EvaluateLightSample(
+                    hitPoint,
+                    hitNormal,
+                    mat,
+                    light,
+                    s,
+                    samples,
+                    triangles,
+                    materials,
+                    bvhNodes,
+                    bvhRootIndex,
+                    triangleOrder,
+                    ref rng));
+        }
+
+        return Float3.Scale(sum, 1f / samples);
+    }
+
+    private static Float3 EvaluateLightSample(
+        Float3 hitPoint,
+        Float3 hitNormal,
+        GpuMaterial mat,
+        GpuLight light,
+        int sampleOrdinal,
+        int sampleCount,
+        ArrayView<GpuTriangle> triangles,
+        ArrayView<GpuMaterial> materials,
+        ArrayView<GpuBvhNode> bvhNodes,
+        int bvhRootIndex,
+        ArrayView<int> triangleOrder,
+        ref uint rng)
+    {
         var baseColor = ResolveBaseColor(mat, hitPoint);
         var metallic = mat.Model == MaterialModel.Checker || mat.Model == MaterialModel.Skin
             ? 0f
@@ -406,24 +442,23 @@ internal static class IlgpuPathTracerKernels
             light.DirectionOrPosition.Y,
             light.DirectionOrPosition.Z);
 
-        Float3 lightPos;
         Float3 lightDir;
         float maxDist;
         float geometric;
         if (light.Kind == GpuLightKind.Directional)
         {
-            lightPos = lightCenter;
-            lightDir = Float3.Normalize(Float3.Scale(lightPos, -1f));
+            lightDir = Float3.Normalize(Float3.Scale(lightCenter, -1f));
             maxDist = 1e6f;
-            geometric = weightSum;
+            geometric = light.Intensity;
         }
         else if (light.Kind == GpuLightKind.Rect)
         {
             var uAxis = Float3.Create(light.U.X, light.U.Y, light.U.Z);
             var vAxis = Float3.Create(light.V.X, light.V.Y, light.V.Z);
-            var su = NextFloat(ref rng) * 2f - 1f;
+            // Stratified rect samples (soft-shadow variance drops ~sqrt(N)).
+            var su = ((sampleOrdinal + NextFloat(ref rng)) / sampleCount) * 2f - 1f;
             var sv = NextFloat(ref rng) * 2f - 1f;
-            lightPos = Float3.Add(lightCenter, Float3.Add(Float3.Scale(uAxis, su), Float3.Scale(vAxis, sv)));
+            var lightPos = Float3.Add(lightCenter, Float3.Add(Float3.Scale(uAxis, su), Float3.Scale(vAxis, sv)));
             var toLight = Float3.Sub(lightPos, hitPoint);
             maxDist = Float3.Length(toLight);
             if (maxDist < 1e-4f)
@@ -440,20 +475,16 @@ internal static class IlgpuPathTracerKernels
             }
 
             var rectArea = 4f * Float3.Length(uAxis) * Float3.Length(vAxis);
-            // pdf_pick ∝ power; radiance stored in Intensity — scale by weightSum/power * area*cos/r².
-            var power = TracerMath.Max(LightPower(light), 1e-4f);
             var distSq = TracerMath.Max(maxDist * maxDist, 0.04f);
-            geometric = (weightSum / power) * light.Intensity * cosLight * rectArea / distSq;
+            geometric = light.Intensity * cosLight * rectArea / distSq;
         }
         else
         {
-            lightPos = lightCenter;
-            var toLight = Float3.Sub(lightPos, hitPoint);
+            var toLight = Float3.Sub(lightCenter, hitPoint);
             maxDist = Float3.Length(toLight);
             lightDir = maxDist > 1e-4f ? Float3.Scale(toLight, 1f / maxDist) : Float3.UnitY;
-            var power = TracerMath.Max(LightPower(light), 1e-4f);
             var distSq = TracerMath.Max(maxDist * maxDist, 0.04f);
-            geometric = (weightSum / power) * light.Intensity / distSq;
+            geometric = light.Intensity / distSq;
         }
 
         if (!ShadowClear(hitPoint, hitNormal, lightDir, maxDist, triangles, materials, bvhNodes, bvhRootIndex, triangleOrder))

@@ -1,3 +1,4 @@
+using Novolis.Math.Geometry;
 using Novolis.Rendering.Backends.Igpu;
 using Novolis.Rendering.Runtime;
 
@@ -361,6 +362,9 @@ public sealed class PathTraceBackgroundWorker : IDisposable
         }
     }
 
+    private Rgba32[]? _denoiseWork;
+    private Rgba32[]? _denoiseScratch;
+
     private void PublishFrame(IRayTracingBackend backend)
     {
         if (!backend.Output.TryGetCpuPixels(out var pixels, out var w, out var h))
@@ -368,7 +372,33 @@ public sealed class PathTraceBackgroundWorker : IDisposable
             return;
         }
 
-        _display.Publish(pixels, w, h, backend.SampleCount);
+        var samples = backend.SampleCount;
+        if (samples > 0 && samples < PathTraceMildDenoise.MaxSampleCount)
+        {
+            var count = w * h;
+            EnsureDenoiseBuffers(count);
+            var work = _denoiseWork!;
+            var scratch = _denoiseScratch!;
+            pixels.CopyTo(work);
+            PathTraceMildDenoise.ApplyInPlace(work.AsSpan(0, count), w, h, samples, scratch.AsSpan(0, count));
+            _display.Publish(work.AsSpan(0, count), w, h, samples);
+            return;
+        }
+
+        _display.Publish(pixels, w, h, samples);
+    }
+
+    private void EnsureDenoiseBuffers(int count)
+    {
+        if (_denoiseWork is null || _denoiseWork.Length != count)
+        {
+            _denoiseWork = new Rgba32[count];
+        }
+
+        if (_denoiseScratch is null || _denoiseScratch.Length != count)
+        {
+            _denoiseScratch = new Rgba32[count];
+        }
     }
 
     private void ClearPendingLocked()
